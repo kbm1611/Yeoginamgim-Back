@@ -33,7 +33,7 @@ public class JWTService {
                 .compact();
         return token;
     }
-    // [2] 토큰의 클레임(내용물) 추출
+    // [2] 토큰 검증 및 이메일 추출
     public String getClaim(String token){
         if(token != null && token.startsWith("Bearer ")){
             // 토큰이 "Bearer " 로 시작한다면 "Bearer "을 잘라내고 토큰 남겨라
