@@ -1,9 +1,11 @@
 package com.yeginamgim.user.dto.response;
 
+import com.yeginamgim.user.entity.UserEntity;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.springframework.web.multipart.MultipartFile;
 
 @Data
 @Builder
@@ -11,4 +13,15 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 // 회원 정보 응답에 대한 Dto
 public class UserInfoResponseDto {
+    private String email;
+    private String nickname;
+    private String profileImageUrl;
+
+    public UserEntity toEntity(){
+        return UserEntity.builder()
+                .email( email )
+                .nickname( nickname )
+                .profileImageUrl( profileImageUrl )
+                .build();
+    }
 }
