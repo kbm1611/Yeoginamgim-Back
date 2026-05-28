@@ -38,7 +38,20 @@ bin/
 
 ### VS Code ###
 .vscode/
-application.properties
 
 ### Mac OS ###
 .DS_Store
+
+### Logs ###
+*.log
+logs/
+
+### Environment / Secret ###
+.env
+.env.*
+application-secret.properties
+
+### Upload Files ###
+uploads/
+upload/
+files/
