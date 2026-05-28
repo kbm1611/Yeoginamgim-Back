@@ -5,22 +5,7 @@
 **여기남김**은 사용자가 실제 장소를 기반으로 디지털 공간에 포스트잇 형태의 흔적을 남길 수 있는 서비스입니다.  
 사용자는 카카오 장소 검색을 통해 카페, 음식점, 도서관, 학교, 축제장 같은 공간을 찾고, 해당 공간의 보드에 텍스트, 사진, 스티커, 위치 정보를 포함한 포스트잇을 남길 수 있습니다.
 
-백엔드는 다음 1차 기능을 담당합니다.
-
-- 회원가입 / 로그인
-- JWT 기반 인증
-- 카카오 / 구글 OAuth 로그인
-- 카카오 장소 API 연동
-- 현재 위치 기반 주변 공간 조회
-- 장소 정보 저장 및 조회
-- 공간별 보드 생성 및 조회
-- 보드 안 포스트잇 작성 / 조회 / 수정 / 삭제
-- 포스트잇 이미지 업로드
-- 포스트잇 꾸미기 요소 저장
-- 좋아요 / 저장 기능
-- 악성 글 / 욕설 신고 기능
-- 사용자별 기록 보관함 조회
-- 홈화면 인기 공간 / 최근 포스트잇 / 오늘 공감 기록 조회
+이 README는 **정규프로젝트2 - 여기남김 1차 기능**을 기준으로 작성되었습니다.
 
 ---
 
@@ -46,9 +31,74 @@
 
 ---
 
+## 1차 기능 범위
+
+### 1. 회원가입 / 로그인
+
+- 카카오 OAuth 로그인
+- 구글 OAuth 로그인
+- JWT 기반 회원가입 / 로그인
+- 로그인한 사용자 기준으로 내가 남긴 포스트잇 조회
+- 로그인한 사용자 기준으로 보관함 조회
+
+---
+
+### 2. 지도 기반 공간 탐색 시스템
+
+- 현재 위치 기반 주변 공간 조회
+- 카페, 음식점, 도서관 등 실제 장소 연동
+- 공간별 포스트잇 개수 표시
+- 포스트잇이 많은 순서의 인기 공간 조회
+- 카카오맵 API 기반 공간 자동 생성
+
+---
+
+### 3. 공간 보드 시스템
+
+- 공간별 디지털 보드 생성
+- 실제 공간 벽처럼 포스트잇이 쌓이는 보드 제공
+- 확대 / 축소 기반 보드 탐험 기능
+- 포스트잇 위치 기반 보드 조회
+- 오래된 포스트잇 유지 및 탐색
+- 악성 글 / 욕설 신고 기능
+
+---
+
+### 4. 보관함 기능
+
+- 내가 남긴 포스트잇 전체 조회
+- 내가 남긴 포스트잇 개별 조회
+- 날짜별 기록 조회
+- 공간별 추억 아카이브 조회
+- 좋아요 받은 포스트잇 조회
+- 저장한 포스트잇 조회
+
+---
+
+### 5. 포스트잇 작성 시스템
+
+- 포스트잇 메모 작성
+- 폴라로이드 사진 업로드
+- 손글씨 / 낙서 기능
+- 스티커 꾸미기 기능
+- 포스트잇 스타일 및 꾸미기 요소 선택
+- 원하는 위치에 포스트잇 배치
+- 작성한 포스트잇 수정 / 삭제
+
+---
+
+### 6. 홈화면
+
+- 내 위치 기준 인기 공간 리스트 조회
+- 방금 올라온 포스트잇 조회
+- 오늘 많이 공감받은 포스트잇 조회
+
+---
+
 ## 기술 스택
 
 ### Backend
+
 - Java
 - Spring Boot
 - Spring Web
@@ -58,15 +108,18 @@
 - Lombok
 
 ### Database
+
 - MySQL
 
 ### External API
+
 - Kakao Local API
 - Kakao Map API
 - Kakao OAuth API
 - Google OAuth API
 
 ### Build Tool
+
 - Gradle
 
 ---
@@ -114,6 +167,13 @@ backend
 │     └─ java
 │        └─ com
 │           └─ yeoginamgim
+│
+├─ docs
+│  ├─ API_SPEC.md
+│  ├─ BRANCH_RULE.md
+│  ├─ COMMIT_RULE.md
+│  ├─ ENV_SETTING.md
+│  └─ ERD.md
 │
 ├─ build.gradle
 ├─ settings.gradle
@@ -184,7 +244,7 @@ backend
 - 장소 정보 DB 저장
 - 장소 상세 조회
 - 장소별 포스트잇 개수 조회
-- 흔적 많은 순 인기 공간 조회
+- 포스트잇 많은 순 인기 공간 조회
 - 카카오 장소 ID 기반 중복 저장 방지
 
 ---
@@ -218,6 +278,7 @@ backend
 - 포스트잇 색상 / 스타일 저장
 - 포스트잇 이미지 연결
 - 포스트잇 스티커 연결
+- 손글씨 / 낙서 데이터 연결
 
 ---
 
@@ -322,170 +383,12 @@ Spot
       └─ Postit
            ├─ PostitImage
            ├─ PostitSticker
+           ├─ PostitDrawing
            ├─ Reaction
            └─ Report
 
 Sticker
  └─ PostitSticker
-```
-
----
-
-## 주요 도메인 설명
-
-### User
-
-서비스를 사용하는 회원입니다.
-
-주요 정보:
-
-- 이메일
-- 닉네임
-- 프로필 이미지
-- OAuth 제공자
-- OAuth 제공자 ID
-- 사용자 권한
-
----
-
-### Spot
-
-카카오 장소 API에서 가져온 실제 공간 정보입니다.
-
-주요 정보:
-
-- 카카오 장소 ID
-- 장소명
-- 카테고리
-- 주소
-- 도로명 주소
-- 위도
-- 경도
-- 지역 정보
-- 포스트잇 개수
-
----
-
-### Board
-
-특정 공간에 연결된 디지털 방명록 보드입니다.
-
-주요 정보:
-
-- 공간 ID
-- 보드 이름
-- 보드 설명
-- 배경 이미지
-- 보드 너비
-- 보드 높이
-
----
-
-### Postit
-
-사용자가 공간 보드에 남긴 포스트잇 기록입니다.
-
-주요 정보:
-
-- 보드 ID
-- 작성자 ID
-- 내용
-- 배경 색상
-- 글자 색상
-- 글꼴 스타일
-- 보드 위 x 좌표
-- 보드 위 y 좌표
-- 너비
-- 높이
-- 회전값
-- z-index
-- 좋아요 수
-- 저장 수
-- 상태값
-
----
-
-### PostitImage
-
-포스트잇에 첨부된 사진 정보입니다.
-
-주요 정보:
-
-- 포스트잇 ID
-- 이미지 URL
-- 원본 파일명
-- 이미지 순서
-- 이미지 위치
-- 이미지 크기
-- 회전값
-
----
-
-### Sticker
-
-포스트잇에 붙일 수 있는 스티커 원본 정보입니다.
-
-주요 정보:
-
-- 스티커 이름
-- 스티커 이미지 URL
-- 스티커 카테고리
-- 사용 여부
-
----
-
-### PostitSticker
-
-사용자가 특정 포스트잇에 붙인 스티커 정보입니다.
-
-주요 정보:
-
-- 포스트잇 ID
-- 스티커 ID
-- 스티커 위치
-- 스티커 크기
-- 회전값
-- z-index
-
----
-
-### Reaction
-
-사용자가 포스트잇에 남긴 좋아요 또는 저장 기록입니다.
-
-주요 정보:
-
-- 사용자 ID
-- 포스트잇 ID
-- 반응 타입
-
-반응 타입 예시:
-
-```text
-LIKE
-SAVE
-```
-
----
-
-### Report
-
-사용자가 부적절한 포스트잇을 신고한 기록입니다.
-
-주요 정보:
-
-- 신고자 ID
-- 포스트잇 ID
-- 신고 사유
-- 신고 상세 내용
-- 신고 상태
-
-신고 상태 예시:
-
-```text
-PENDING
-ACCEPTED
-REJECTED
 ```
 
 ---
@@ -502,17 +405,6 @@ GET /api/auth/oauth/kakao
 GET /api/auth/oauth/google
 ```
 
----
-
-### User
-
-```text
-GET /api/users/me
-PATCH /api/users/me
-```
-
----
-
 ### Spot
 
 ```text
@@ -522,8 +414,6 @@ GET /api/spots/{spotId}
 POST /api/spots/from-kakao
 ```
 
----
-
 ### Board
 
 ```text
@@ -531,8 +421,6 @@ GET /api/spots/{spotId}/boards
 GET /api/boards/{boardId}
 GET /api/boards/{boardId}/postits
 ```
-
----
 
 ### Postit
 
@@ -545,8 +433,6 @@ PATCH /api/postits/{postitId}/position
 DELETE /api/postits/{postitId}
 ```
 
----
-
 ### Reaction
 
 ```text
@@ -557,15 +443,11 @@ POST /api/postits/{postitId}/saves
 DELETE /api/postits/{postitId}/saves
 ```
 
----
-
 ### Report
 
 ```text
 POST /api/postits/{postitId}/reports
 ```
-
----
 
 ### Archive
 
@@ -578,8 +460,6 @@ GET /api/users/me/liked-postits
 GET /api/users/me/saved-postits
 ```
 
----
-
 ### Home
 
 ```text
@@ -589,12 +469,69 @@ GET /api/home/recent-postits
 GET /api/home/today-liked-postits
 ```
 
----
-
 ### File
 
 ```text
 POST /api/files/images
+```
+
+---
+
+## 추천 협업 문서 구조
+
+README는 추후 발표 자료나 포트폴리오에서 요약해서 쓰기 쉽도록 **프로젝트 소개 중심**으로 유지합니다.  
+개발하면서 자주 바뀌는 협업 문서는 `docs` 폴더에 따로 관리하는 것을 추천합니다.
+
+```text
+docs
+├─ API_SPEC.md
+├─ BRANCH_RULE.md
+├─ COMMIT_RULE.md
+├─ ENV_SETTING.md
+└─ ERD.md
+```
+
+각 문서 역할:
+
+```text
+API_SPEC.md    : API 명세서
+BRANCH_RULE.md : 브랜치 전략
+COMMIT_RULE.md : 커밋 메시지 규칙
+ENV_SETTING.md : 로컬 실행 및 설정 파일 작성 방법
+ERD.md         : DB 테이블 구조와 ERD 정리
+```
+
+---
+
+## 설정 파일 관리
+
+`application.properties`는 GitHub에 올리는 기본 설정 파일입니다.
+
+```properties
+spring.application.name=YEOGINAMGIM-BACKEND
+
+spring.config.import=optional:application-secret.properties
+
+server.port=8080
+
+spring.jpa.hibernate.ddl-auto=update
+spring.jpa.show-sql=true
+```
+
+`application-secret.properties`는 개인별로 생성하는 비밀 설정 파일입니다.  
+DB 비밀번호, API Key, JWT Secret처럼 외부에 공개되면 안 되는 값을 작성합니다.
+
+```properties
+spring.datasource.url=jdbc:mysql://localhost:3306/yeoginamgim_db
+spring.datasource.username=your_db_username
+spring.datasource.password=your_db_password
+
+kakao.rest-api-key=your_kakao_rest_api_key
+
+google.client-id=your_google_client_id
+google.client-secret=your_google_client_secret
+
+jwt.secret=your_jwt_secret_key
 ```
 
 ---
@@ -632,13 +569,12 @@ git clone [repository-url]
 cd YEOGINAMGIM-BACKEND
 ```
 
----
-
 ### 2. 설정 파일 작성
 
 `src/main/resources/application-secret.properties` 파일을 생성하고, 개인별 API 키와 DB 비밀번호를 작성합니다.
 
 ```properties
+spring.datasource.url=jdbc:mysql://localhost:3306/yeoginamgim_db
 spring.datasource.username=your_db_username
 spring.datasource.password=your_db_password
 
@@ -646,9 +582,9 @@ kakao.rest-api-key=your_kakao_rest_api_key
 
 google.client-id=your_google_client_id
 google.client-secret=your_google_client_secret
-```
 
----
+jwt.secret=your_jwt_secret_key
+```
 
 ### 3. 의존성 설치 및 빌드
 
@@ -661,8 +597,6 @@ Windows 환경에서는 다음 명령어를 사용할 수 있습니다.
 ```bash
 gradlew.bat build
 ```
-
----
 
 ### 4. 서버 실행
 
@@ -689,6 +623,7 @@ build/
 out/
 .idea/
 *.log
+uploads/
 ```
 
 `.gitignore`에 반드시 포함해야 합니다.
