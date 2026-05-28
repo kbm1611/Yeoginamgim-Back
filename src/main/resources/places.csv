@@ -1,0 +1,4 @@
+# SAMPLE
+kakao_place_id,place_name,latitude,longitude,phone,address,kakao_map_url,group_name
+26338954,샘플_스타벅스 강남점,37.4979,127.0276,02-0000-0000,서울 강남구 샘플로 1,https://place.map.kakao.com/26338954,카페
+26338953,샘플_감성 카페,37.4985,127.0281,02-1111-1111,서울 강남구 샘플로 2,https://place.map.kakao.com/26338953,카페
