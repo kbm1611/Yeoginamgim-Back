@@ -1,5 +1,6 @@
 package com.yeginamgim.global.file;
 
+import com.yeginamgim.global.exception.FileUploadException;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -11,6 +12,8 @@ import java.util.UUID;
 @Service
 public class FileService {
     private static final long MAX_FILE_SIZE = 5 * 1024 * 1024;
+    private static final String FILE_SIZE_EXCEEDED_MESSAGE = "파일 크기는 5MB를 초과할 수 없습니다.";
+    private static final String PROFILE_URL_PREFIX = "/upload/profile/";
 
     private final Path uploadRoot = Path.of(System.getProperty("user.dir"), "uploads");
     private final Path profileUploadDir = uploadRoot.resolve("profile");
@@ -26,9 +29,27 @@ public class FileService {
         return upload(uploadFile, boardUploadDir);
     }
 
+    public void deleteProfileFile(String profileImageUrl) {
+        if (profileImageUrl == null || !profileImageUrl.startsWith(PROFILE_URL_PREFIX)) return;
+
+        String fileName = profileImageUrl.substring(PROFILE_URL_PREFIX.length());
+        if (fileName.isBlank()) return;
+
+        String safeFileName = Path.of(fileName).getFileName().toString();
+        Path deletePath = profileUploadDir.resolve(safeFileName).normalize();
+
+        if (!deletePath.startsWith(profileUploadDir)) return;
+
+        try {
+            Files.deleteIfExists(deletePath);
+        } catch (IOException e) {
+            System.out.println(e);
+        }
+    }
+
     private String upload(MultipartFile uploadFile, Path uploadDir) {
         if (uploadFile == null || uploadFile.isEmpty()) return null;
-        if (uploadFile.getSize() > MAX_FILE_SIZE) return null;
+        if (uploadFile.getSize() > MAX_FILE_SIZE) throw new FileUploadException(FILE_SIZE_EXCEEDED_MESSAGE);
 
         String uuid = UUID.randomUUID().toString();
         String originalFilename = uploadFile.getOriginalFilename();
