@@ -6,6 +6,7 @@ import com.yeginamgim.user.dto.request.UserUpdateRequestDto;
 import com.yeginamgim.user.dto.response.UserInfoResponseDto;
 import com.yeginamgim.user.service.UserService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -16,6 +17,8 @@ import org.springframework.web.bind.annotation.*;
 public class UserController {
     private final UserService userSvc;
     private final JWTService jwtSvc;
+    private static final String UNAUTHORIZED_MESSAGE = "인증되지 않은 요청입니다.";
+
     // (1) 일반 회원가입
     @PostMapping("/signup")
     public ResponseEntity<?> signup(@ModelAttribute UserSignupRequestDto userReqDto){
@@ -23,14 +26,14 @@ public class UserController {
     }
     // (2) 회원 정보 조회, 로그인한 사용자 정보 조회
     @GetMapping("/myinfo")
-    public ResponseEntity<?> getMyInfo(@RequestHeader(value = "Authorization") String token){
-        if(token == null || !token.startsWith("Bearer")){
-            return ResponseEntity.ok( false );
+    public ResponseEntity<?> getMyInfo(@RequestHeader(value = "Authorization", required = false) String token){
+        if(token == null || !token.startsWith("Bearer ")){
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(UNAUTHORIZED_MESSAGE);
         }
         token = token.replace("Bearer ", "");
         String email = jwtSvc.getClaim(token);
         if(email == null){
-            return ResponseEntity.ok( false );
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(UNAUTHORIZED_MESSAGE);
         }
         UserInfoResponseDto result = userSvc.getMyInfo(email);
         if( result == null ){
@@ -41,18 +44,18 @@ public class UserController {
     // (3) 회원정보 수정
     @PatchMapping("/update")
     public ResponseEntity<?> updateUserInfo(
-            @RequestHeader(value = "Authorization") String token,
+            @RequestHeader(value = "Authorization", required = false) String token,
             @ModelAttribute UserUpdateRequestDto userUpdDto){
 
         if (token == null || !token.startsWith("Bearer ")) {
-            return ResponseEntity.ok(false);
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(UNAUTHORIZED_MESSAGE);
         }
 
         token = token.replace("Bearer ", "");
         String email = jwtSvc.getClaim(token);
 
         if (email == null) {
-            return ResponseEntity.ok(false);
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(UNAUTHORIZED_MESSAGE);
         }
 
         UserInfoResponseDto result = userSvc.updateUserInfo(email, userUpdDto);
