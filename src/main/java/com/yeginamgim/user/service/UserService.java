@@ -1,5 +1,6 @@
 package com.yeginamgim.user.service;
 
+import com.yeginamgim.global.exception.DuplicateMemberException;
 import com.yeginamgim.global.file.FileService;
 import com.yeginamgim.user.dto.request.UserSignupRequestDto;
 import com.yeginamgim.user.dto.request.UserUpdateRequestDto;
@@ -13,8 +14,6 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import java.util.Optional;
-
 @Service
 @RequiredArgsConstructor
 public class UserService {
@@ -27,7 +26,7 @@ public class UserService {
     public UserSignupResponseDto signup(UserSignupRequestDto userReqDto ){
 
         // 이메일이 존재하는 지 확인
-        if(userRepo.findByEmail(userReqDto.getEmail()).isPresent()) return null;
+        if(userRepo.findByEmail(userReqDto.getEmail()).isPresent()) throw new DuplicateMemberException();
 
         UserEntity saveEntity = userReqDto.toEntity();
 
@@ -52,7 +51,8 @@ public class UserService {
 
             // DB 유니크 제약 조건에 걸릴 시 --> 동시에 가입한 경우
         } catch( DataIntegrityViolationException e){
-            return null;
+            fileSvc.deleteProfileFile(saveEntity.getProfileImageUrl());
+            throw new DuplicateMemberException();
         }
     }
 
@@ -76,7 +76,9 @@ public class UserService {
 
         String fileName = fileSvc.profileUpload(userUpdDto.getProfileUploadFile());
         if (fileName != null) {
+            String oldProfileImageUrl = userEntity.getProfileImageUrl();
             userEntity.setProfileImageUrl("/upload/profile/" + fileName);
+            fileSvc.deleteProfileFile(oldProfileImageUrl);
         }
 
         return userEntity.toInfoDto();
