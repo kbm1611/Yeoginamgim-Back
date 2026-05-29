@@ -5,6 +5,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
+
 @Data
 @Builder
 @AllArgsConstructor
@@ -15,4 +17,5 @@ public class UserSignupResponseDto {
     private String password;
     private String nickname;
     private String profileImageUrl;
+    private LocalDateTime createdAt;
 }

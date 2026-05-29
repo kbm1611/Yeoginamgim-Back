@@ -47,6 +47,7 @@ public class UserService {
                     .email(savedEntity.getEmail())
                     .nickname(savedEntity.getNickname())
                     .profileImageUrl(savedEntity.getProfileImageUrl())
+                    .createdAt(savedEntity.getCreatedAt())
                     .build();
 
             // DB 유니크 제약 조건에 걸릴 시 --> 동시에 가입한 경우
