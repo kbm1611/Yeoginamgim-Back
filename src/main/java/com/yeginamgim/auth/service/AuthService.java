@@ -3,6 +3,7 @@ package com.yeginamgim.auth.service;
 import com.yeginamgim.auth.dto.request.LoginRequestDto;
 import com.yeginamgim.auth.dto.response.LoginResponseDto;
 import com.yeginamgim.auth.jwt.JWTService;
+import com.yeginamgim.global.exception.OAuthLoginException;
 import com.yeginamgim.user.entity.UserEntity;
 import com.yeginamgim.user.enums.LoginProvider;
 import com.yeginamgim.user.repository.UserRepository;
@@ -13,6 +14,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
@@ -75,6 +77,7 @@ public class AuthService {
                 .queryParam("response_type", "code")
                 .queryParam("client_id", kakaoClientId)
                 .queryParam("redirect_uri", kakaoRedirectUri)
+                .queryParam("scope", "profile_nickname profile_image account_email")
                 .build()
                 .toUriString();
     }
@@ -88,22 +91,27 @@ public class AuthService {
 
         HttpEntity<Void> request = new HttpEntity<>( headers );
 
-        ResponseEntity<Map> response = restTemplate.exchange(
-                "https://kapi.kakao.com/v2/user/me",
-                HttpMethod.GET,
-                request,
-                Map.class
-        );
+        Map<String, Object> body;
+        try {
+            ResponseEntity<Map> response = restTemplate.exchange(
+                    "https://kapi.kakao.com/v2/user/me",
+                    HttpMethod.GET,
+                    request,
+                    Map.class
+            );
+            body = response.getBody();
+        } catch (RestClientException e) {
+            throw new OAuthLoginException();
+        }
 
-        Map<String, Object> body = response.getBody();
+        Object id = getRequiredValue(body, "id");
+        String providerId = String.valueOf(id);
 
-        String providerId = String.valueOf( body.get( "id" ) );
+        Map<String, Object> kakaoAccount = getRequiredMap(body, "kakao_account");
+        Map<String, Object> profile = getRequiredMap(kakaoAccount, "profile");
 
-        Map<String, Object> kakaoAccount = (Map<String, Object>) body.get("kakao_account");
-        Map<String, Object> profile = (Map<String, Object>) kakaoAccount.get("profile");
-
-        String email = (String) kakaoAccount.get( "email" );
-        String nickname = (String) profile.get( "nickname" );
+        String email = getRequiredString(kakaoAccount, "email");
+        String nickname = getRequiredString(profile, "nickname");
         String profileImageUrl = (String) profile.get( "profile_image_url" );
 
         return socialLogin(
@@ -130,14 +138,18 @@ public class AuthService {
         HttpEntity<MultiValueMap<String, String>> request =
                 new HttpEntity<>(params, headers);
 
-        ResponseEntity<Map> response = restTemplate.postForEntity(
-                "https://kauth.kakao.com/oauth/token",
-                request,
-                Map.class
-        );
+        try {
+            ResponseEntity<Map> response = restTemplate.postForEntity(
+                    "https://kauth.kakao.com/oauth/token",
+                    request,
+                    Map.class
+            );
 
-        Map<String, Object> body = response.getBody();
-        return (String) body.get("access_token");
+            Map<String, Object> body = response.getBody();
+            return getRequiredString(body, "access_token");
+        } catch (RestClientException e) {
+            throw new OAuthLoginException();
+        }
     }
 
     // 구글 로그인 url 생성
@@ -161,18 +173,22 @@ public class AuthService {
 
         HttpEntity<Void> request = new HttpEntity<>(headers);
 
-        ResponseEntity<Map> response = restTemplate.exchange(
-                "https://openidconnect.googleapis.com/v1/userinfo",
-                HttpMethod.GET,
-                request,
-                Map.class
-        );
+        Map<String, Object> body;
+        try {
+            ResponseEntity<Map> response = restTemplate.exchange(
+                    "https://openidconnect.googleapis.com/v1/userinfo",
+                    HttpMethod.GET,
+                    request,
+                    Map.class
+            );
+            body = response.getBody();
+        } catch (RestClientException e) {
+            throw new OAuthLoginException();
+        }
 
-        Map<String, Object> body = response.getBody();
-
-        String providerId = (String) body.get("sub");
-        String email = (String) body.get("email");
-        String nickname = (String) body.get("name");
+        String providerId = getRequiredString(body, "sub");
+        String email = getRequiredString(body, "email");
+        String nickname = getRequiredString(body, "name");
         String profileImageUrl = (String) body.get("picture");
 
         return socialLogin(
@@ -199,14 +215,18 @@ public class AuthService {
         HttpEntity<MultiValueMap<String, String>> request =
                 new HttpEntity<>(params, headers);
 
-        ResponseEntity<Map> response = restTemplate.postForEntity(
-                "https://oauth2.googleapis.com/token",
-                request,
-                Map.class
-        );
+        try {
+            ResponseEntity<Map> response = restTemplate.postForEntity(
+                    "https://oauth2.googleapis.com/token",
+                    request,
+                    Map.class
+            );
 
-        Map<String, Object> body = response.getBody();
-        return (String) body.get("access_token");
+            Map<String, Object> body = response.getBody();
+            return getRequiredString(body, "access_token");
+        } catch (RestClientException e) {
+            throw new OAuthLoginException();
+        }
     }
 
     // 소셜 로그인
@@ -217,6 +237,10 @@ public class AuthService {
             String nickname,
             String profileImageUrl
     ){
+        if (providerId == null || email == null || nickname == null) {
+            throw new OAuthLoginException();
+        }
+
         UserEntity userEntity = userRepo.findByProviderAndProviderId(provider, providerId).orElse(null);
 
         if( userEntity == null ){
@@ -245,5 +269,21 @@ public class AuthService {
                 .build();
     }
 
+    private Map<String, Object> getRequiredMap(Map<String, Object> body, String key) {
+        Object value = getRequiredValue(body, key);
+        if (!(value instanceof Map)) throw new OAuthLoginException();
+        return (Map<String, Object>) value;
+    }
+
+    private String getRequiredString(Map<String, Object> body, String key) {
+        Object value = getRequiredValue(body, key);
+        if (!(value instanceof String stringValue) || stringValue.isBlank()) throw new OAuthLoginException();
+        return stringValue;
+    }
+
+    private Object getRequiredValue(Map<String, Object> body, String key) {
+        if (body == null || !body.containsKey(key) || body.get(key) == null) throw new OAuthLoginException();
+        return body.get(key);
+    }
 
 }
