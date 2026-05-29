@@ -24,11 +24,6 @@ INSERT IGNORE INTO board (board_id, kakao_place_id, created_at) VALUES
 (9, '22787687', '2026-05-28 14:32:18'),
 (10, '972437375', '2026-05-28 14:32:18');
 
-/*
-현재 Trace 엔티티에는 user_id, board_id 매핑이 주석 처리되어 있어
-아래 방문록 샘플을 실행하면 data.sql 단계에서 서버 시작이 실패한다.
-방문록 생성 구조를 확정한 뒤 다시 활성화한다.
-
 -- trace 샘플
 INSERT IGNORE INTO trace (trace_id, user_id, board_id, trace_x, trace_y, trace_status, created_at, updated_at) VALUES
 (1, 1, 3, 30, 50, 'ACTIVE', '2026-05-28 14:32:18', '2026-05-31 14:32:18'),
@@ -67,6 +62,9 @@ INSERT IGNORE INTO `like` (like_id, user_id, trace_id, created_at) VALUES
 (8, 8, 6, '2026-06-03 14:32:18'),
 (9, 8, 3, '2026-06-04 14:32:18'),
 (10, 7, 8, '2026-06-05 14:32:18');
+
+/*
+report 샘플은 report 엔티티와 테이블 구조를 구현한 뒤 활성화한다.
 
 -- report 샘플
 INSERT IGNORE INTO report (report_id, user_id, trace_id, report_kind, created_at) VALUES
