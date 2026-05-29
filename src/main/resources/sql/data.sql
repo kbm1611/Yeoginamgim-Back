@@ -63,6 +63,9 @@ INSERT IGNORE INTO `like` (like_id, user_id, trace_id, created_at) VALUES
 (9, 8, 3, '2026-06-04 14:32:18'),
 (10, 7, 8, '2026-06-05 14:32:18');
 
+/*
+report 샘플은 report 엔티티와 테이블 구조를 구현한 뒤 활성화한다.
+
 -- report 샘플
 INSERT IGNORE INTO report (report_id, user_id, trace_id, report_kind, created_at) VALUES
 (1, 9, 1, '악성 글', '2026-05-27 14:32:18'),
@@ -75,3 +78,4 @@ INSERT IGNORE INTO report (report_id, user_id, trace_id, report_kind, created_at
 (8, 8, 2, '욕설', '2026-06-03 14:32:18'),
 (9, 8, 7, '욕설', '2026-06-04 14:32:18'),
 (10, 7, 3, '욕설', '2026-06-05 14:32:18');
+*/

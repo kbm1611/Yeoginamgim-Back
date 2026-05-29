@@ -1,12 +1,13 @@
 package com.yeginamgim.trace.entity;
 
 
-import com.yeginamgim.global.entity.BaseTime;
+import com.yeginamgim.user.entity.UserEntity;
 import jakarta.persistence.*;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.apache.catalina.User;
+
+import java.time.LocalDateTime;
 
 /**
  * 좋아요 테이블 Entity
@@ -15,33 +16,39 @@ import org.apache.catalina.User;
  * like_id | user_id | trace_id | created_at
  */
 @Entity
-@Table(name = "trace_likes",
+@Table(name = "`like`",
         uniqueConstraints = @UniqueConstraint(columnNames = {"user_id", "trace_id"}))
 @Data
 @NoArgsConstructor
-public class TraceLike extends BaseTime {
+public class TraceLike {
     /** 좋아요 고유 번호 (PK) */
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "like_id")
     private Long likeId;
 
-    /** 좋아요 누른 유저 (FK → users.user_id)
+    /** 좋아요 누른 유저 (FK -> users.user_id) */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
-    private User user;
-     */
+    private UserEntity user;
 
-    /** 좋아요 눌린 흔적 (FK → traces.trace_id) */
+    /** 좋아요 눌린 흔적 (FK -> trace.trace_id) */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "trace_id", nullable = false)
     private Trace trace;
 
-    /** 좋아요 생성 빌더
+    @Column(name = "created_at", nullable = false)
+    private LocalDateTime createdAt;
+
+    /** 좋아요 생성 빌더 */
     @Builder
-    public TraceLike(User user, Trace trace) {
+    public TraceLike(UserEntity user, Trace trace) {
         this.user = user;
         this.trace = trace;
     }
-     */
+
+    @PrePersist
+    public void onCreate() {
+        this.createdAt = LocalDateTime.now();
+    }
 }

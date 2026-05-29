@@ -7,8 +7,10 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
+
 @Entity
-@Table(name = "trace_elements")
+@Table(name = "trace_element")
 @Data
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class TraceElement {
@@ -24,9 +26,9 @@ public class TraceElement {
     @JoinColumn(name = "trace_id", nullable = false)
     private Trace trace;
 
-    /**
+     /**
      * 흔적 종류
-     * POSTIT   : 포스트잇
+     * POST_IT  : 포스트잇
      * POLAROID : 폴라로이드
      */
     @Column(name = "content_type", nullable = false, length = 20)
@@ -57,6 +59,12 @@ public class TraceElement {
     @Column(name = "style_json", columnDefinition = "JSON")
     private String styleJson;
 
+    @Column(name = "created_at", nullable = false)
+    private LocalDateTime createdAt;
+
+    @Column(name = "updated_at", nullable = false)
+    private LocalDateTime updatedAt;
+
     /** 흔적 요소 생성 빌더 */
     @Builder
     public TraceElement(Trace trace, ContentType contentType,
@@ -69,5 +77,17 @@ public class TraceElement {
         this.elementX = elementX;
         this.elementY = elementY;
         this.styleJson = styleJson;
+    }
+
+    @PrePersist
+    public void onCreate() {
+        LocalDateTime now = LocalDateTime.now();
+        this.createdAt = now;
+        this.updatedAt = now;
+    }
+
+    @PreUpdate
+    public void onUpdate() {
+        this.updatedAt = LocalDateTime.now();
     }
 }

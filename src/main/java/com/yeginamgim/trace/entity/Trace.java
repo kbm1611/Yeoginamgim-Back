@@ -1,17 +1,24 @@
 package com.yeginamgim.trace.entity;
 
-import com.yeginamgim.global.entity.BaseTime;
+import com.yeginamgim.board.entity.BoardEntity;
 import com.yeginamgim.trace.enums.TraceStatus;
+import com.yeginamgim.user.entity.UserEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "trace")
 @Data
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class Trace extends BaseTime {
+@AllArgsConstructor
+@Builder
+public class Trace {
 
     /** 흔적 고유 번호 (PK) */
     @Id
@@ -19,17 +26,15 @@ public class Trace extends BaseTime {
     @Column(name = "trace_id")
     private Long traceId;
 
-    /** 흔적을 남긴 유저 (FK → users.user_id) - 지연 로딩
+    /** 흔적을 남긴 유저 (FK -> users.user_id) */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
-    private User user;
-     */
+    private UserEntity user;
 
-    /** 흔적이 속한 보드 (FK → boards.board_id) - 지연 로딩
+    /** 흔적이 속한 보드 (FK -> board.board_id) */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "board_id", nullable = false)
-    private Board board;
-     */
+    private BoardEntity board;
 
     /** 보드 내 X 좌표 (INT, 픽셀 기준) */
     @Column(name = "trace_x", nullable = false)
@@ -46,21 +51,30 @@ public class Trace extends BaseTime {
      */
     @Column(name = "trace_status", nullable = false)
     @Enumerated(EnumType.STRING)
+    @Builder.Default
     private TraceStatus traceStatus = TraceStatus.ACTIVE;
 
-    /** 흔적 생성 빌더
-    @Builder
-    public Trace(User user, Board board, Integer traceX, Integer traceY) {
-        this.user = user;
-        this.board = board;
-        this.traceX = traceX;
-        this.traceY = traceY;
-        this.traceStatus = TraceStatus.ACTIVE;
+    @Column(name = "created_at", nullable = false)
+    private LocalDateTime createdAt;
+
+    @Column(name = "updated_at", nullable = false)
+    private LocalDateTime updatedAt;
+
+    @PrePersist
+    public void onCreate() {
+        LocalDateTime now = LocalDateTime.now();
+        this.createdAt = now;
+        this.updatedAt = now;
     }
-     */
+
+    @PreUpdate
+    public void onUpdate() {
+        this.updatedAt = LocalDateTime.now();
+    }
 
     /** 흔적 숨기기 (ACTIVE → HIDE) */
     public void hide() {
         this.traceStatus = TraceStatus.HIDE;
+        this.updatedAt = LocalDateTime.now();
     }
 }

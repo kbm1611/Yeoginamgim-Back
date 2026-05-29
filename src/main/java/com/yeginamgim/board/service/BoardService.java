@@ -28,29 +28,43 @@ public class BoardService {
         BoardEntity board = boardRepository.findById(boardId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "보드를 찾을 수 없습니다."));
 
-        PlaceInfo place = findPlaceByKakaoPlaceId(board.getKakaoPlaceId());
+        return toBoardDetailResponse(board);
+    }
 
-        return BoardDetailResponse.builder()
-                .boardId(board.getBoardId())
-                .kakaoPlaceId(board.getKakaoPlaceId())
-                .createdAt(board.getCreatedAt())
-                .place(place)
-                .build();
+    // kakao_place_id 기준 보드 조회 또는 생성
+    public BoardDetailResponse getOrCreateBoardByKakaoPlaceId(String kakaoPlaceId) {
+        return getOrCreateBoard(kakaoPlaceId);
     }
 
     // kakao_place_id 기준 보드 생성 또는 기존 보드 반환
     public BoardDetailResponse createBoard(BoardCreateRequest request) {
-        if (request.getKakaoPlaceId() == null || request.getKakaoPlaceId().isBlank()) {
+        if (request == null || request.getKakaoPlaceId() == null || request.getKakaoPlaceId().isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "카카오 장소 ID는 필수입니다.");
         }
 
-        PlaceInfo place = findPlaceByKakaoPlaceId(request.getKakaoPlaceId());
+        return getOrCreateBoard(request.getKakaoPlaceId());
+    }
 
-        BoardEntity board = boardRepository.findByKakaoPlaceId(request.getKakaoPlaceId())
+    // kakao_place_id 기준 보드 찾기 또는 새 보드 생성
+    private BoardDetailResponse getOrCreateBoard(String kakaoPlaceId) {
+        if (kakaoPlaceId == null || kakaoPlaceId.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "카카오 장소 ID는 필수입니다.");
+        }
+
+        findPlaceByKakaoPlaceId(kakaoPlaceId);
+
+        BoardEntity board = boardRepository.findByKakaoPlaceId(kakaoPlaceId)
                 .orElseGet(() -> boardRepository.save(BoardEntity.builder()
-                        .kakaoPlaceId(request.getKakaoPlaceId())
+                        .kakaoPlaceId(kakaoPlaceId)
                         .createdAt(LocalDateTime.now())
                         .build()));
+
+        return toBoardDetailResponse(board);
+    }
+
+    // 보드 Entity를 응답 DTO로 변환
+    private BoardDetailResponse toBoardDetailResponse(BoardEntity board) {
+        PlaceInfo place = findPlaceByKakaoPlaceId(board.getKakaoPlaceId());
 
         return BoardDetailResponse.builder()
                 .boardId(board.getBoardId())
