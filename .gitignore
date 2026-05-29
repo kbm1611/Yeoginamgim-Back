@@ -46,6 +46,8 @@ bin/
 *.log
 logs/
 
+.idea/
+
 ### Environment / Secret ###
 .env
 .env.*
