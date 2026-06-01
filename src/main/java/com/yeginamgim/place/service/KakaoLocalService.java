@@ -10,6 +10,7 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.util.UriBuilder;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Service
@@ -18,6 +19,15 @@ public class KakaoLocalService {
     private static final String KAKAO_LOCAL_BASE_URL = "https://dapi.kakao.com";
     private static final int DEFAULT_RADIUS = 2000;
     private static final int DEFAULT_SIZE = 10;
+    private static final Map<String, String> CATEGORY_CODES = Map.of(
+            "cafe", "CE7",
+            "food", "FD6",
+            "culture", "CT1"
+    );
+    private static final Map<String, String> CATEGORY_KEYWORDS = Map.of(
+            "park", "공원",
+            "shop", "편집샵"
+    );
 
     private final RestClient restClient;
     private final String restApiKey;
@@ -67,6 +77,56 @@ public class KakaoLocalService {
         }
     }
 
+    public List<PlaceInfo> searchByCategory(PlaceSearchRequest request) {
+        if (!hasApiKey() || request == null || !StringUtils.hasText(request.getCategory())) {
+            return List.of();
+        }
+
+        String category = request.getCategory().trim().toLowerCase();
+        String categoryCode = CATEGORY_CODES.get(category);
+        if (StringUtils.hasText(categoryCode)) {
+            return searchByKakaoCategoryCode(request, categoryCode);
+        }
+
+        String keyword = CATEGORY_KEYWORDS.get(category);
+        if (StringUtils.hasText(keyword)) {
+            return searchByKeyword(PlaceSearchRequest.builder()
+                    .latitude(request.getLatitude())
+                    .longitude(request.getLongitude())
+                    .radius(request.getRadius())
+                    .query(keyword)
+                    .page(request.getPage())
+                    .limit(request.getLimit())
+                    .build());
+        }
+
+        return List.of();
+    }
+
+    private List<PlaceInfo> searchByKakaoCategoryCode(PlaceSearchRequest request, String categoryCode) {
+        if (request.getLatitude() == null || request.getLongitude() == null) {
+            return List.of();
+        }
+
+        try {
+            KakaoKeywordResponse response = restClient.get()
+                    .uri(uriBuilder -> categorySearchUri(uriBuilder, request, categoryCode))
+                    .header("Authorization", "KakaoAK " + restApiKey)
+                    .retrieve()
+                    .body(KakaoKeywordResponse.class);
+
+            if (response == null || response.getDocuments() == null) {
+                return List.of();
+            }
+
+            return response.getDocuments().stream()
+                    .map(this::toPlaceInfo)
+                    .toList();
+        } catch (RuntimeException exception) {
+            return List.of();
+        }
+    }
+
     private java.net.URI keywordSearchUri(UriBuilder uriBuilder, PlaceSearchRequest request) {
         UriBuilder builder = uriBuilder
                 .path("/v2/local/search/keyword.json")
@@ -81,6 +141,18 @@ public class KakaoLocalService {
         }
 
         return builder.build();
+    }
+
+    private java.net.URI categorySearchUri(UriBuilder uriBuilder, PlaceSearchRequest request, String categoryCode) {
+        return uriBuilder
+                .path("/v2/local/search/category.json")
+                .queryParam("category_group_code", categoryCode)
+                .queryParam("y", request.getLatitude())
+                .queryParam("x", request.getLongitude())
+                .queryParam("radius", defaultRadius(request.getRadius()))
+                .queryParam("page", defaultPage(request.getPage()))
+                .queryParam("size", defaultLimit(request.getLimit()))
+                .build();
     }
 
     private PlaceInfo toPlaceInfo(KakaoPlaceDocument document) {

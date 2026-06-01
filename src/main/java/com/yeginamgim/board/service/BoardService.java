@@ -5,10 +5,12 @@ import com.yeginamgim.board.dto.BoardDetailResponse;
 import com.yeginamgim.board.dto.PlaceInfo;
 import com.yeginamgim.board.entity.BoardEntity;
 import com.yeginamgim.board.repository.BoardRepository;
+import com.yeginamgim.place.service.PlaceCsvStore;
 import com.yeginamgim.place.service.PlaceService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
@@ -19,38 +21,33 @@ public class BoardService {
 
     private final BoardRepository boardRepository;
     private final PlaceService placeService;
+    private final PlaceCsvStore placeCsvStore;
 
-    // board_id 기준 보드 상세 조회
     public BoardDetailResponse getBoardDetail(Long boardId) {
         BoardEntity board = boardRepository.findById(boardId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "보드를 찾을 수 없습니다."));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Board not found."));
 
         return toBoardDetailResponse(board);
     }
 
-    // kakao_place_id 기준 보드 조회 또는 생성
     public BoardDetailResponse getOrCreateBoardByKakaoPlaceId(String kakaoPlaceId) {
         return getOrCreateBoard(kakaoPlaceId);
     }
 
-    // 다른 기능에서 kakao_place_id 기준 장소 정보가 필요할 때 사용한다.
     public PlaceInfo getPlaceInfoByKakaoPlaceId(String kakaoPlaceId) {
         return findPlaceByKakaoPlaceId(kakaoPlaceId);
     }
 
-    // kakao_place_id 기준 보드 생성 또는 기존 보드 반환
     public BoardDetailResponse createBoard(BoardCreateRequest request) {
-        if (request == null || request.getKakaoPlaceId() == null || request.getKakaoPlaceId().isBlank()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "카카오 장소 ID는 필수입니다.");
-        }
+        validateCreateRequest(request);
+        savePlaceSnapshotIfNeeded(request);
 
         return getOrCreateBoard(request.getKakaoPlaceId());
     }
 
-    // kakao_place_id 기준 보드 찾기 또는 새 보드 생성
     private BoardDetailResponse getOrCreateBoard(String kakaoPlaceId) {
-        if (kakaoPlaceId == null || kakaoPlaceId.isBlank()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "카카오 장소 ID는 필수입니다.");
+        if (!StringUtils.hasText(kakaoPlaceId)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "kakaoPlaceId is required.");
         }
 
         findPlaceByKakaoPlaceId(kakaoPlaceId);
@@ -64,7 +61,6 @@ public class BoardService {
         return toBoardDetailResponse(board);
     }
 
-    // 보드 Entity를 응답 DTO로 변환
     private BoardDetailResponse toBoardDetailResponse(BoardEntity board) {
         PlaceInfo place = findPlaceByKakaoPlaceId(board.getKakaoPlaceId());
 
@@ -76,8 +72,40 @@ public class BoardService {
                 .build();
     }
 
-    // kakao_place_id 기준 장소 검색은 PlaceService에서 Kakao API + CSV fallback으로 처리한다.
     private PlaceInfo findPlaceByKakaoPlaceId(String kakaoPlaceId) {
         return placeService.findPlaceInfoByKakaoPlaceId(kakaoPlaceId);
+    }
+
+    private void validateCreateRequest(BoardCreateRequest request) {
+        if (request == null || !StringUtils.hasText(request.getKakaoPlaceId())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "kakaoPlaceId is required.");
+        }
+    }
+
+    private void savePlaceSnapshotIfNeeded(BoardCreateRequest request) {
+        if (placeCsvStore.findByKakaoPlaceId(request.getKakaoPlaceId()).isPresent()) {
+            return;
+        }
+        if (!hasPlaceSnapshot(request)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Place snapshot is required for uncached place.");
+        }
+
+        placeCsvStore.saveIfAbsent(PlaceInfo.builder()
+                .kakaoPlaceId(request.getKakaoPlaceId())
+                .placeName(request.getPlaceName())
+                .latitude(request.getLatitude())
+                .longitude(request.getLongitude())
+                .phone(request.getPhone())
+                .address(request.getAddress())
+                .kakaoMapUrl(request.getKakaoMapUrl())
+                .groupName(request.getGroupName())
+                .build());
+    }
+
+    private boolean hasPlaceSnapshot(BoardCreateRequest request) {
+        return StringUtils.hasText(request.getPlaceName())
+                && request.getLatitude() != null
+                && request.getLongitude() != null
+                && StringUtils.hasText(request.getGroupName());
     }
 }
