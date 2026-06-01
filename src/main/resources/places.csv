@@ -1,0 +1,11 @@
+kakao_place_id,place_name,latitude,longitude,phone,address,kakao_map_url,group_name
+26338954,Sample Starbucks Gangnam,37.4979,127.0276,02-0000-0000,Seoul Gangnam Sample-ro 1,https://place.map.kakao.com/26338954,Cafe
+26338953,Sample Cafe,37.4985,127.0281,02-1111-1111,Seoul Gangnam Sample-ro 2,https://place.map.kakao.com/26338953,Cafe
+73753737,Sample Exhibition Space,37.4991,127.0290,02-2222-2222,Seoul Gangnam Sample-ro 3,https://place.map.kakao.com/73753737,Exhibition
+87778373,Sample Library,37.5002,127.0301,02-3333-3333,Seoul Gangnam Sample-ro 4,https://place.map.kakao.com/87778373,Library
+75373753,Sample Rooftop Cafe,37.5010,127.0312,02-4444-4444,Seoul Gangnam Sample-ro 5,https://place.map.kakao.com/75373753,Cafe
+57753735,Sample Park Plaza,37.5021,127.0323,02-5555-5555,Seoul Gangnam Sample-ro 6,https://place.map.kakao.com/57753735,Park
+86533235,Sample Pop-up Store,37.5032,127.0334,02-6666-6666,Seoul Gangnam Sample-ro 7,https://place.map.kakao.com/86533235,Shop
+27247972,Sample Festival Booth,37.5043,127.0345,02-7777-7777,Seoul Gangnam Sample-ro 8,https://place.map.kakao.com/27247972,Festival
+22787687,Sample Culture Space,37.5054,127.0356,02-8888-8888,Seoul Gangnam Sample-ro 9,https://place.map.kakao.com/22787687,Culture
+972437375,Sample Outdoor Stage,37.5065,127.0367,02-9999-9999,Seoul Gangnam Sample-ro 10,https://place.map.kakao.com/972437375,Performance
