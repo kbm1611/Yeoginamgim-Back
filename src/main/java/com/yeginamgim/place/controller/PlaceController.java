@@ -21,11 +21,13 @@ public class PlaceController {
 
     private final PlaceService placeService;
 
+    // 근처 장소 조회
     @GetMapping("/nearby")
     public List<PlaceResponse> getNearbyPlaces(@ModelAttribute PlaceSearchRequest request) {
         return placeService.searchNearbyPlaces(request);
     }
 
+    // 인기 장소 조회
     @GetMapping("/popular")
     public List<PopularPlaceResponse> getPopularPlaces(
             @RequestParam(defaultValue = "10") Integer limit
@@ -33,6 +35,7 @@ public class PlaceController {
         return placeService.getPopularPlaces(limit);
     }
 
+    // kakaoId로 장소 조회
     @GetMapping("/{kakaoPlaceId}")
     public PlaceResponse getPlace(@PathVariable String kakaoPlaceId) {
         return placeService.getPlaceByKakaoPlaceId(kakaoPlaceId);
