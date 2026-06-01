@@ -153,4 +153,28 @@ public interface TraceRepository extends JpaRepository<Trace, Long> {
             LocalDateTime startAt,
             LocalDateTime endAt
     );
+
+    @Query("""
+            select count(trace)
+            from Trace trace
+            where trace.board.kakaoPlaceId = :kakaoPlaceId
+              and trace.traceStatus = com.yeginamgim.trace.enums.TraceStatus.ACTIVE
+            """)
+    long countActiveByKakaoPlaceId(@Param("kakaoPlaceId") String kakaoPlaceId);
+
+    @Query("""
+            select trace.board.kakaoPlaceId as kakaoPlaceId,
+                   count(trace) as traceCount
+            from Trace trace
+            where trace.traceStatus = com.yeginamgim.trace.enums.TraceStatus.ACTIVE
+            group by trace.board.kakaoPlaceId
+            order by count(trace) desc, trace.board.kakaoPlaceId asc
+            """)
+    List<PlaceTraceCount> countActiveTracesByPlace();
+
+    interface PlaceTraceCount {
+        String getKakaoPlaceId();
+
+        Long getTraceCount();
+    }
 }

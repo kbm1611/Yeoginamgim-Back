@@ -5,16 +5,12 @@ import com.yeginamgim.board.dto.BoardDetailResponse;
 import com.yeginamgim.board.dto.PlaceInfo;
 import com.yeginamgim.board.entity.BoardEntity;
 import com.yeginamgim.board.repository.BoardRepository;
+import com.yeginamgim.place.service.PlaceService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 
 @Service
@@ -22,6 +18,7 @@ import java.time.LocalDateTime;
 public class BoardService {
 
     private final BoardRepository boardRepository;
+    private final PlaceService placeService;
 
     // board_id 기준 보드 상세 조회
     public BoardDetailResponse getBoardDetail(Long boardId) {
@@ -79,48 +76,8 @@ public class BoardService {
                 .build();
     }
 
-    // kakao_place_id 기준 places.csv 장소 검색
+    // kakao_place_id 기준 장소 검색은 PlaceService에서 Kakao API + CSV fallback으로 처리한다.
     private PlaceInfo findPlaceByKakaoPlaceId(String kakaoPlaceId) {
-        ClassPathResource resource = new ClassPathResource("places.csv");
-
-        try (BufferedReader reader = new BufferedReader(
-                new InputStreamReader(resource.getInputStream(), StandardCharsets.UTF_8))) {
-
-            String line;
-            boolean headerSkipped = false;
-
-            while ((line = reader.readLine()) != null) {
-                if (line.isBlank() || line.startsWith("#")) {
-                    continue;
-                }
-
-                if (!headerSkipped) {
-                    headerSkipped = true;
-                    continue;
-                }
-
-                String[] columns = line.split(",", -1);
-                if (columns.length < 8) {
-                    continue;
-                }
-
-                if (columns[0].equals(kakaoPlaceId)) {
-                    return PlaceInfo.builder()
-                            .kakaoPlaceId(columns[0])
-                            .placeName(columns[1])
-                            .latitude(Double.parseDouble(columns[2]))
-                            .longitude(Double.parseDouble(columns[3]))
-                            .phone(columns[4])
-                            .address(columns[5])
-                            .kakaoMapUrl(columns[6])
-                            .groupName(columns[7])
-                            .build();
-                }
-            }
-        } catch (IOException exception) {
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "장소 CSV 파일을 읽을 수 없습니다.");
-        }
-
-        throw new ResponseStatusException(HttpStatus.NOT_FOUND, "CSV에서 카카오 장소 정보를 찾을 수 없습니다.");
+        return placeService.findPlaceInfoByKakaoPlaceId(kakaoPlaceId);
     }
 }
