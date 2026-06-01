@@ -1,19 +1,20 @@
 package com.yeginamgim.trace.entity;
 
+import com.yeginamgim.global.entity.BaseTime;
 import com.yeginamgim.trace.enums.ContentType;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
-
-import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "trace_element")
 @Data
+@EqualsAndHashCode(callSuper = false)
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class TraceElement {
+public class TraceElement extends BaseTime {
 
     /** 요소 고유 번호 (PK) */
     @Id
@@ -59,12 +60,6 @@ public class TraceElement {
     @Column(name = "style_json", columnDefinition = "JSON")
     private String styleJson;
 
-    @Column(name = "created_at", nullable = false)
-    private LocalDateTime createdAt;
-
-    @Column(name = "updated_at", nullable = false)
-    private LocalDateTime updatedAt;
-
     /** 흔적 요소 생성 빌더 */
     @Builder
     public TraceElement(Trace trace, ContentType contentType,
@@ -77,17 +72,5 @@ public class TraceElement {
         this.elementX = elementX;
         this.elementY = elementY;
         this.styleJson = styleJson;
-    }
-
-    @PrePersist
-    public void onCreate() {
-        LocalDateTime now = LocalDateTime.now();
-        this.createdAt = now;
-        this.updatedAt = now;
-    }
-
-    @PreUpdate
-    public void onUpdate() {
-        this.updatedAt = LocalDateTime.now();
     }
 }

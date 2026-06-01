@@ -23,6 +23,7 @@ public class TraceResponse {
     private Integer traceY;
     private String traceStatus;
     private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
     private Long likeCount;
 
     @Builder.Default

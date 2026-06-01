@@ -338,6 +338,7 @@ public class TraceService {
                 .traceY(trace.getTraceY())
                 .traceStatus(trace.getTraceStatus().name())
                 .createdAt(trace.getCreatedAt())
+                .updatedAt(trace.getUpdatedAt())
                 .likeCount(traceLikeRepository.countByTrace_TraceId(trace.getTraceId()))
                 .elements(elements.stream()
                         .map(this::toTraceElementResponse)
@@ -354,6 +355,8 @@ public class TraceService {
                 .elementX(element.getElementX())
                 .elementY(element.getElementY())
                 .styleJson(element.getStyleJson())
+                .createdAt(element.getCreatedAt())
+                .updatedAt(element.getUpdatedAt())
                 .build();
     }
 

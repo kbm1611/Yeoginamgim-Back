@@ -1,5 +1,6 @@
 package com.yeginamgim.trace.entity;
 
+import com.yeginamgim.global.entity.BaseTime;
 import com.yeginamgim.board.entity.BoardEntity;
 import com.yeginamgim.trace.enums.TraceStatus;
 import com.yeginamgim.user.entity.UserEntity;
@@ -8,17 +9,17 @@ import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
-
-import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "trace")
 @Data
+@EqualsAndHashCode(callSuper = false)
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 @Builder
-public class Trace {
+public class Trace extends BaseTime {
 
     /** 흔적 고유 번호 (PK) */
     @Id
@@ -54,27 +55,8 @@ public class Trace {
     @Builder.Default
     private TraceStatus traceStatus = TraceStatus.ACTIVE;
 
-    @Column(name = "created_at", nullable = false)
-    private LocalDateTime createdAt;
-
-    @Column(name = "updated_at", nullable = false)
-    private LocalDateTime updatedAt;
-
-    @PrePersist
-    public void onCreate() {
-        LocalDateTime now = LocalDateTime.now();
-        this.createdAt = now;
-        this.updatedAt = now;
-    }
-
-    @PreUpdate
-    public void onUpdate() {
-        this.updatedAt = LocalDateTime.now();
-    }
-
     /** 흔적 숨기기 (ACTIVE → HIDE) */
     public void hide() {
         this.traceStatus = TraceStatus.HIDE;
-        this.updatedAt = LocalDateTime.now();
     }
 }
