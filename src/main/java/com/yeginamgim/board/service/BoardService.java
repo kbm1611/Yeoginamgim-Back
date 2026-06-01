@@ -36,6 +36,11 @@ public class BoardService {
         return getOrCreateBoard(kakaoPlaceId);
     }
 
+    // 다른 기능에서 kakao_place_id 기준 장소 정보가 필요할 때 사용한다.
+    public PlaceInfo getPlaceInfoByKakaoPlaceId(String kakaoPlaceId) {
+        return findPlaceByKakaoPlaceId(kakaoPlaceId);
+    }
+
     // kakao_place_id 기준 보드 생성 또는 기존 보드 반환
     public BoardDetailResponse createBoard(BoardCreateRequest request) {
         if (request == null || request.getKakaoPlaceId() == null || request.getKakaoPlaceId().isBlank()) {

@@ -2,12 +2,16 @@ package com.yeginamgim.trace.service;
 
 import com.yeginamgim.board.entity.BoardEntity;
 import com.yeginamgim.board.repository.BoardRepository;
+import com.yeginamgim.global.file.FileService;
 import com.yeginamgim.trace.dto.TraceCreateRequest;
 import com.yeginamgim.trace.dto.TraceElementCreateRequest;
 import com.yeginamgim.trace.dto.TraceElementResponse;
+import com.yeginamgim.trace.dto.TraceElementUpdateRequest;
+import com.yeginamgim.trace.dto.TraceImageUploadResponse;
 import com.yeginamgim.trace.dto.TraceLikeResponse;
 import com.yeginamgim.trace.dto.TraceListResponse;
 import com.yeginamgim.trace.dto.TraceResponse;
+import com.yeginamgim.trace.dto.TraceUpdateRequest;
 import com.yeginamgim.trace.entity.Trace;
 import com.yeginamgim.trace.entity.TraceElement;
 import com.yeginamgim.trace.entity.TraceLike;
@@ -22,10 +26,12 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
@@ -37,6 +43,7 @@ public class TraceService {
     private final TraceLikeRepository traceLikeRepository;
     private final BoardRepository boardRepository;
     private final UserRepository userRepository;
+    private final FileService fileService;
 
     // board_id 기준 흔적 목록 조회
     @Transactional(readOnly = true)
@@ -112,6 +119,42 @@ public class TraceService {
         return toTraceResponse(trace, elements);
     }
 
+    // 흔적 이미지 업로드
+    public TraceImageUploadResponse uploadTraceImage(MultipartFile file) {
+        String fileName = fileService.boardUpload(file);
+        if (fileName == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "업로드할 이미지 파일은 필수입니다.");
+        }
+
+        return TraceImageUploadResponse.builder()
+                .imageUrl("/upload/board/" + fileName)
+                .build();
+    }
+
+    // trace_id 기준 흔적 수정
+    @Transactional
+    public TraceResponse updateTrace(Long traceId, TraceUpdateRequest request) {
+        validateUpdateRequest(request);
+
+        Trace trace = traceRepository
+                .findByTraceIdAndUser_UserIdAndTraceStatus(traceId, request.getUserId(), TraceStatus.ACTIVE)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "수정할 수 있는 흔적을 찾을 수 없습니다."));
+
+        if (request.getTraceX() != null) {
+            trace.setTraceX(request.getTraceX());
+        }
+
+        if (request.getTraceY() != null) {
+            trace.setTraceY(request.getTraceY());
+        }
+
+        updateTraceElements(trace, request.getElements());
+
+        List<TraceElement> elements = traceElementRepository.findByTrace_TraceIdOrderByElementIdAsc(traceId);
+
+        return toTraceResponse(trace, elements);
+    }
+
     // trace_id 기준 흔적 숨김 처리
     @Transactional
     public void hideTrace(Long traceId) {
@@ -170,6 +213,14 @@ public class TraceService {
         }
     }
 
+    private void validateUpdateRequest(TraceUpdateRequest request) {
+        if (request == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "흔적 수정 요청은 필수입니다.");
+        }
+
+        validateUserId(request.getUserId());
+    }
+
     private BoardEntity findBoard(Long boardId) {
         return boardRepository.findById(boardId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "보드를 찾을 수 없습니다."));
@@ -199,6 +250,82 @@ public class TraceService {
                 .elementY(request.getElementY())
                 .styleJson(request.getStyleJson())
                 .build();
+    }
+
+    private void updateTraceElements(Trace trace, List<TraceElementUpdateRequest> elementRequests) {
+        if (elementRequests == null || elementRequests.isEmpty()) {
+            return;
+        }
+
+        List<TraceElement> existingElements = traceElementRepository.findByTrace_TraceIdOrderByElementIdAsc(trace.getTraceId());
+        Map<Long, TraceElement> existingElementMap = existingElements.stream()
+                .collect(Collectors.toMap(TraceElement::getElementId, Function.identity()));
+
+        List<TraceElement> newElements = new ArrayList<>();
+
+        for (TraceElementUpdateRequest elementRequest : elementRequests) {
+            if (elementRequest == null) {
+                continue;
+            }
+
+            if (elementRequest.getElementId() == null) {
+                newElements.add(toTraceElement(trace, elementRequest));
+                continue;
+            }
+
+            TraceElement element = existingElementMap.get(elementRequest.getElementId());
+            if (element == null) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "수정할 흔적 요소를 찾을 수 없습니다.");
+            }
+
+            updateTraceElement(element, elementRequest);
+        }
+
+        if (!newElements.isEmpty()) {
+            traceElementRepository.saveAll(newElements);
+        }
+    }
+
+    private TraceElement toTraceElement(Trace trace, TraceElementUpdateRequest request) {
+        if (request.getContentType() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "새 흔적 요소의 contentType은 필수입니다.");
+        }
+
+        return TraceElement.builder()
+                .trace(trace)
+                .contentType(request.getContentType())
+                .textContent(request.getTextContent())
+                .imageUrl(request.getImageUrl())
+                .elementX(request.getElementX())
+                .elementY(request.getElementY())
+                .styleJson(request.getStyleJson())
+                .build();
+    }
+
+    private void updateTraceElement(TraceElement element, TraceElementUpdateRequest request) {
+        if (request.getContentType() != null) {
+            element.setContentType(request.getContentType());
+        }
+
+        if (request.getTextContent() != null) {
+            element.setTextContent(request.getTextContent());
+        }
+
+        if (request.getImageUrl() != null) {
+            element.setImageUrl(request.getImageUrl());
+        }
+
+        if (request.getElementX() != null) {
+            element.setElementX(request.getElementX());
+        }
+
+        if (request.getElementY() != null) {
+            element.setElementY(request.getElementY());
+        }
+
+        if (request.getStyleJson() != null) {
+            element.setStyleJson(request.getStyleJson());
+        }
     }
 
     private TraceResponse toTraceResponse(Trace trace, List<TraceElement> elements) {
