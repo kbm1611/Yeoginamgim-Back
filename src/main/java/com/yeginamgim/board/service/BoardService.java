@@ -82,6 +82,7 @@ public class BoardService {
         }
     }
 
+    // 장소 정보가 CSV 캐시에 없다면 CSV에 저장하는 함수.
     private void savePlaceSnapshotIfNeeded(BoardCreateRequest request) {
         if (placeCsvStore.findByKakaoPlaceId(request.getKakaoPlaceId()).isPresent()) {
             return;
@@ -102,6 +103,7 @@ public class BoardService {
                 .build());
     }
 
+    // 요청에 CSV로 저장할 수 있을 만큼의 장보 정보가 있는지 확인. 장소명, 위도, 경도, 카테고리 중 하나라도 없으면 false
     private boolean hasPlaceSnapshot(BoardCreateRequest request) {
         return StringUtils.hasText(request.getPlaceName())
                 && request.getLatitude() != null
