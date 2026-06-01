@@ -1,15 +1,26 @@
 -- users 샘플
+-- 원래 비밀번호:
+-- 1 example1@sample.com = qwe123
+-- 2 qwe1@sample.com = asd123
+-- 3 qwe12@sample.com = zxc123
+-- 4 qwe123@sample.com = qwqw1212
+-- 5 qwe1234@sample.com = asas1212
+-- 6 qwe12345@sample.com = zxzx1212
+-- 7 qwer1@sample.com = wewe2323
+-- 8 qwer12@sample.com = sdsd2323
+-- 9 qwer123@sample.com = xcxc2323
+-- 10 qwer1234@sample.com = qwer1234
 INSERT IGNORE INTO users (user_id, email, password, nickname, provider, provider_id, created_at, updated_at) VALUES
-(1, 'example1@sample.com', 'qwe123', '새벽달', 'kakao', 1, '2026-05-28 14:32:18', '2026-05-31 14:32:18'),
-(2, 'qwe1@sample.com', 'asd123', '은하수', 'kakao', 1, '2026-05-28 14:32:18', '2026-05-31 14:32:18'),
-(3, 'qwe12@sample.com', 'zxc123', '달빛별', 'google', 2, '2026-05-28 14:32:18', '2026-05-31 14:32:18'),
-(4, 'qwe123@sample.com', 'qwqw1212', '푸른밤', 'google', 2, '2026-05-28 14:32:18', '2026-05-31 14:32:18'),
-(5, 'qwe1234@sample.com', 'asas1212', '여름비', 'google', 2, '2026-05-28 14:32:18', '2026-05-31 14:32:18'),
-(6, 'qwe12345@sample.com', 'zxzx1212', '잔잔한바다', 'google', 2, '2026-05-28 14:32:18', '2026-05-31 14:32:18'),
-(7, 'qwer1@sample.com', 'wewe2323', '하늘조각', 'google', 2, '2026-05-28 14:32:18', '2026-05-31 14:32:18'),
-(8, 'qwer12@sample.com', 'sdsd2323', '바람꽃', 'google', 2, '2026-05-28 14:32:18', '2026-05-31 14:32:18'),
-(9, 'qwer123@sample.com', 'xcxc2323', '치즈냥', 'kakao', 1, '2026-05-28 14:32:18', '2026-05-31 14:32:18'),
-(10, 'qwer1234@sample.com', 'qwer1234', '솜구름', 'kakao', 1, '2026-05-28 14:32:18', '2026-06-02 14:32:18');
+(1, 'example1@sample.com', '$2a$10$9F69wG1YfiGd3d.iYGhtxO9lRBDef/3HKNEt84l1dkW2gxk1sBUK.', '새벽달', 'kakao', 1, '2026-05-28 14:32:18', '2026-05-31 14:32:18'),
+(2, 'qwe1@sample.com', '$2a$10$uPyw/pkAt1EOn/wgkQXMb.CADQaLFc//YudD4CMP9QorsiHUjj.nq', '은하수', 'kakao', 1, '2026-05-28 14:32:18', '2026-05-31 14:32:18'),
+(3, 'qwe12@sample.com', '$2a$10$HyCoejQzT/wK/05yr1WbruEK6Kfhi5CarIzlSZpfYdGYeFJsmrLvi', '달빛별', 'google', 2, '2026-05-28 14:32:18', '2026-05-31 14:32:18'),
+(4, 'qwe123@sample.com', '$2a$10$65fc/j4DNnSTd1Zm/w9AEelC0JU8egB89Yng7JdG.LTCYuCmEl6Ee', '푸른밤', 'google', 2, '2026-05-28 14:32:18', '2026-05-31 14:32:18'),
+(5, 'qwe1234@sample.com', '$2a$10$c3AeLX.RMgNCFkTqOqQzFuuE0npRVuOgXjNiwKwsvHkByw485V.cO', '여름비', 'google', 2, '2026-05-28 14:32:18', '2026-05-31 14:32:18'),
+(6, 'qwe12345@sample.com', '$2a$10$/vedSpohvnFY44VAxdQ1QutVAVDef.a.On6ATF3nYrn3i9mMmqLxe', '잔잔한바다', 'google', 2, '2026-05-28 14:32:18', '2026-05-31 14:32:18'),
+(7, 'qwer1@sample.com', '$2a$10$TN0HE/iKhyHpL05pFn3Ft.vSiUrGV/l0.MKl/ijn1niMWOI7b8GK2', '하늘조각', 'google', 2, '2026-05-28 14:32:18', '2026-05-31 14:32:18'),
+(8, 'qwer12@sample.com', '$2a$10$cT.RTK9ITbxAu1/xW.EdO.l11RYydjSIoK0j1rDTWiu/NYR.dNXpW', '바람꽃', 'google', 2, '2026-05-28 14:32:18', '2026-05-31 14:32:18'),
+(9, 'qwer123@sample.com', '$2a$10$E.F7/8UZOB0cT1r12AeDk.9mcG2KWOGtvwVy7kstTgYYOeB2bbZAW', '치즈냥', 'kakao', 1, '2026-05-28 14:32:18', '2026-05-31 14:32:18'),
+(10, 'qwer1234@sample.com', '$2a$10$2kzFTJdR2u9Xc9gwoNMdaOuL8zsxsEe8.t6A3jrPbfnN0.e7JfTi6', '솜구름', 'kakao', 1, '2026-05-28 14:32:18', '2026-06-02 14:32:18');
 
 -- board 샘플
 INSERT IGNORE INTO board (board_id, kakao_place_id, created_at) VALUES
