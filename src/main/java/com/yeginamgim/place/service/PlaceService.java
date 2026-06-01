@@ -8,54 +8,79 @@ import com.yeginamgim.place.dto.response.PlaceResponse;
 import com.yeginamgim.place.dto.response.PopularPlaceResponse;
 import com.yeginamgim.trace.repository.TraceRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
-import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Optional;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
 @Service
 @RequiredArgsConstructor
 public class PlaceService {
 
-    private static final int DEFAULT_LIMIT = 10;
-    private static final int DEFAULT_RADIUS = 2000;
-    private static final String PLACES_CSV = "places.csv";
+    private static final int DEFAULT_LIMIT = 20;
+    private static final int MAX_LIMIT = 20;
+    private static final int DEFAULT_RADIUS = 500;
+    private static final Set<String> ALLOWED_NEARBY_CATEGORIES = Set.of("cafe", "food", "shop", "park", "culture");
 
     private final KakaoLocalService kakaoLocalService;
     private final BoardRepository boardRepository;
     private final TraceRepository traceRepository;
+    private final PlaceCsvStore placeCsvStore;
 
     public PlaceResponse getPlaceByKakaoPlaceId(String kakaoPlaceId) {
-        validateKakaoPlaceId(kakaoPlaceId);
-
-        PlaceInfo placeInfo = kakaoLocalService.findByKakaoPlaceId(kakaoPlaceId)
-                .or(() -> findCsvPlaceByKakaoPlaceId(kakaoPlaceId))
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Place not found."));
-
+        PlaceInfo placeInfo = findPlaceInfoByKakaoPlaceId(kakaoPlaceId);
         return toPlaceResponse(placeInfo);
     }
 
     public List<PlaceResponse> searchNearbyPlaces(PlaceSearchRequest request) {
-        PlaceSearchRequest safeRequest = request == null ? new PlaceSearchRequest() : request;
+        PlaceSearchRequest safeRequest = validateNearbyRequest(request);
+        int limit = normalizeLimit(safeRequest.getLimit());
+        int radius = normalizeRadius(safeRequest.getRadius());
 
-        List<PlaceInfo> kakaoPlaces = kakaoLocalService.searchByKeyword(safeRequest);
-        List<PlaceInfo> places = kakaoPlaces.isEmpty()
-                ? searchCsvPlaces(safeRequest)
-                : kakaoPlaces;
+        List<PlaceInfo> cachedPlaces = placeCsvStore.findNearby(
+                safeRequest.getLatitude(),
+                safeRequest.getLongitude(),
+                safeRequest.getCategory(),
+                radius
+        );
 
-        return places.stream()
-                .limit(normalizeLimit(safeRequest.getLimit()))
+        List<PlaceResponse> cachedResponses = cachedPlaces.stream()
                 .map(this::toPlaceResponse)
+                .sorted((left, right) -> compareCachedResponses(
+                        left,
+                        right,
+                        safeRequest.getLatitude(),
+                        safeRequest.getLongitude()
+                ))
+                .limit(limit)
+                .toList();
+
+        Map<String, PlaceResponse> responsesByKakaoPlaceId = new LinkedHashMap<>();
+        cachedResponses.forEach(response -> responsesByKakaoPlaceId.put(response.getKakaoPlaceId(), response));
+
+        if (responsesByKakaoPlaceId.size() < limit) {
+            PlaceSearchRequest kakaoRequest = PlaceSearchRequest.builder()
+                    .latitude(safeRequest.getLatitude())
+                    .longitude(safeRequest.getLongitude())
+                    .radius(radius)
+                    .category(safeRequest.getCategory())
+                    .limit(limit - responsesByKakaoPlaceId.size())
+                    .page(safeRequest.getPage())
+                    .build();
+
+            kakaoLocalService.searchByCategory(kakaoRequest).stream()
+                    .map(this::toPlaceResponse)
+                    .forEach(response -> responsesByKakaoPlaceId.putIfAbsent(response.getKakaoPlaceId(), response));
+        }
+
+        return responsesByKakaoPlaceId.values().stream()
+                .limit(limit)
                 .toList();
     }
 
@@ -66,20 +91,16 @@ public class PlaceService {
         return traceRepository.countActiveTracesByPlace().stream()
                 .limit(normalizedLimit)
                 .map(count -> {
-                    PlaceInfo placeInfo = kakaoLocalService.findByKakaoPlaceId(count.getKakaoPlaceId())
-                            .or(() -> findCsvPlaceByKakaoPlaceId(count.getKakaoPlaceId()))
-                            .orElse(null);
-
+                    PlaceInfo placeInfo = placeCsvStore.findByKakaoPlaceId(count.getKakaoPlaceId()).orElse(null);
                     if (placeInfo == null) {
                         return null;
                     }
 
-                    Long boardId = findBoardId(placeInfo.getKakaoPlaceId());
                     return PopularPlaceResponse.from(
                             rank.getAndIncrement(),
                             placeInfo,
                             count.getTraceCount(),
-                            boardId
+                            findBoardId(placeInfo.getKakaoPlaceId())
                     );
                 })
                 .filter(response -> response != null)
@@ -89,9 +110,8 @@ public class PlaceService {
     public PlaceInfo findPlaceInfoByKakaoPlaceId(String kakaoPlaceId) {
         validateKakaoPlaceId(kakaoPlaceId);
 
-        return kakaoLocalService.findByKakaoPlaceId(kakaoPlaceId)
-                .or(() -> findCsvPlaceByKakaoPlaceId(kakaoPlaceId))
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Place not found."));
+        return placeCsvStore.findByKakaoPlaceId(kakaoPlaceId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Place not found in local cache."));
     }
 
     private PlaceResponse toPlaceResponse(PlaceInfo placeInfo) {
@@ -108,54 +128,70 @@ public class PlaceService {
                 .orElse(null);
     }
 
-    private Optional<PlaceInfo> findCsvPlaceByKakaoPlaceId(String kakaoPlaceId) {
-        return loadCsvPlaces().stream()
-                .filter(place -> kakaoPlaceId.equals(place.getKakaoPlaceId()))
-                .findFirst();
-    }
-
-    private List<PlaceInfo> searchCsvPlaces(PlaceSearchRequest request) {
-        String query = normalize(request.getQuery());
-        String category = normalize(request.getCategory());
-        int radius = request.getRadius() == null || request.getRadius() <= 0
-                ? DEFAULT_RADIUS
-                : request.getRadius();
-
-        return loadCsvPlaces().stream()
-                .filter(place -> matchesQuery(place, query))
-                .filter(place -> matchesCategory(place, category))
-                .filter(place -> isWithinRadius(place, request.getLatitude(), request.getLongitude(), radius))
-                .sorted(Comparator.comparing(PlaceInfo::getPlaceName, Comparator.nullsLast(String::compareTo)))
-                .toList();
-    }
-
-    private boolean matchesQuery(PlaceInfo place, String query) {
-        if (!StringUtils.hasText(query)) {
-            return true;
+    private int compareCachedResponses(PlaceResponse left, PlaceResponse right, Double latitude, Double longitude) {
+        int boardCompare = Boolean.compare(right.getBoardId() != null, left.getBoardId() != null);
+        if (boardCompare != 0) {
+            return boardCompare;
         }
 
-        return contains(place.getPlaceName(), query)
-                || contains(place.getAddress(), query)
-                || contains(place.getGroupName(), query);
-    }
-
-    private boolean matchesCategory(PlaceInfo place, String category) {
-        if (!StringUtils.hasText(category) || "all".equals(category)) {
-            return true;
+        int traceCompare = Long.compare(defaultLong(right.getTraceCount()), defaultLong(left.getTraceCount()));
+        if (traceCompare != 0) {
+            return traceCompare;
         }
 
-        return contains(place.getGroupName(), category);
+        return Double.compare(
+                distanceInMeters(latitude, longitude, left.getLatitude(), left.getLongitude()),
+                distanceInMeters(latitude, longitude, right.getLatitude(), right.getLongitude())
+        );
     }
 
-    private boolean isWithinRadius(PlaceInfo place, Double latitude, Double longitude, int radius) {
-        if (latitude == null || longitude == null || place.getLatitude() == null || place.getLongitude() == null) {
-            return true;
+    private PlaceSearchRequest validateNearbyRequest(PlaceSearchRequest request) {
+        if (request == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Nearby place request is required.");
+        }
+        if (request.getLatitude() == null || request.getLongitude() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "latitude and longitude are required.");
+        }
+        if (!StringUtils.hasText(request.getCategory())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "category is required.");
         }
 
-        return distanceInMeters(latitude, longitude, place.getLatitude(), place.getLongitude()) <= radius;
+        String category = request.getCategory().trim().toLowerCase();
+        if ("all".equals(category) || !ALLOWED_NEARBY_CATEGORIES.contains(category)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unsupported nearby place category.");
+        }
+
+        request.setCategory(category);
+        return request;
     }
 
-    private double distanceInMeters(double latitude1, double longitude1, double latitude2, double longitude2) {
+    private void validateKakaoPlaceId(String kakaoPlaceId) {
+        if (!StringUtils.hasText(kakaoPlaceId)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "kakaoPlaceId is required.");
+        }
+    }
+
+    private int normalizeLimit(Integer limit) {
+        if (limit == null || limit <= 0) {
+            return DEFAULT_LIMIT;
+        }
+
+        return Math.min(limit, MAX_LIMIT);
+    }
+
+    private int normalizeRadius(Integer radius) {
+        return radius == null || radius <= 0 ? DEFAULT_RADIUS : radius;
+    }
+
+    private long defaultLong(Long value) {
+        return value == null ? 0 : value;
+    }
+
+    private double distanceInMeters(Double latitude1, Double longitude1, Double latitude2, Double longitude2) {
+        if (latitude1 == null || longitude1 == null || latitude2 == null || longitude2 == null) {
+            return Double.MAX_VALUE;
+        }
+
         double earthRadius = 6371000;
         double latDistance = Math.toRadians(latitude2 - latitude1);
         double lonDistance = Math.toRadians(longitude2 - longitude1);
@@ -165,73 +201,5 @@ public class PlaceService {
         double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
         return earthRadius * c;
-    }
-
-    private boolean contains(String value, String keyword) {
-        return StringUtils.hasText(value) && normalize(value).contains(keyword);
-    }
-
-    private String normalize(String value) {
-        return StringUtils.hasText(value) ? value.trim().toLowerCase() : "";
-    }
-
-    private List<PlaceInfo> loadCsvPlaces() {
-        ClassPathResource resource = new ClassPathResource(PLACES_CSV);
-
-        try (BufferedReader reader = new BufferedReader(
-                new InputStreamReader(resource.getInputStream(), StandardCharsets.UTF_8))) {
-            return reader.lines()
-                    .filter(line -> StringUtils.hasText(line) && !line.startsWith("#"))
-                    .skip(1)
-                    .map(this::toPlaceInfo)
-                    .flatMap(Optional::stream)
-                    .toList();
-        } catch (IOException exception) {
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Unable to read places.csv.");
-        }
-    }
-
-    private Optional<PlaceInfo> toPlaceInfo(String line) {
-        String[] columns = line.split(",", -1);
-        if (columns.length < 8) {
-            return Optional.empty();
-        }
-
-        return Optional.of(PlaceInfo.builder()
-                .kakaoPlaceId(columns[0])
-                .placeName(columns[1])
-                .latitude(parseDouble(columns[2]))
-                .longitude(parseDouble(columns[3]))
-                .phone(columns[4])
-                .address(columns[5])
-                .kakaoMapUrl(columns[6])
-                .groupName(columns[7])
-                .build());
-    }
-
-    private Double parseDouble(String value) {
-        if (!StringUtils.hasText(value)) {
-            return null;
-        }
-
-        try {
-            return Double.parseDouble(value);
-        } catch (NumberFormatException exception) {
-            return null;
-        }
-    }
-
-    private int normalizeLimit(Integer limit) {
-        if (limit == null || limit <= 0) {
-            return DEFAULT_LIMIT;
-        }
-
-        return Math.min(limit, 50);
-    }
-
-    private void validateKakaoPlaceId(String kakaoPlaceId) {
-        if (!StringUtils.hasText(kakaoPlaceId)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "kakaoPlaceId is required.");
-        }
     }
 }
