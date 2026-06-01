@@ -3,6 +3,7 @@ package com.yeginamgim.place.service;
 import com.yeginamgim.board.dto.PlaceInfo;
 import com.yeginamgim.board.entity.BoardEntity;
 import com.yeginamgim.board.repository.BoardRepository;
+import com.yeginamgim.place.dto.request.PlaceConfirmRequest;
 import com.yeginamgim.place.dto.request.PlaceSearchRequest;
 import com.yeginamgim.place.dto.response.PlaceResponse;
 import com.yeginamgim.place.dto.response.PopularPlaceResponse;
@@ -25,7 +26,7 @@ public class PlaceService {
 
     private static final int DEFAULT_LIMIT = 20;
     private static final int MAX_LIMIT = 20;
-    private static final int DEFAULT_RADIUS = 500;
+    private static final int DEFAULT_RADIUS = 1000;
     private static final Set<String> ALLOWED_NEARBY_CATEGORIES = Set.of("cafe", "food", "shop", "park", "culture");
 
     private final KakaoLocalService kakaoLocalService;
@@ -82,6 +83,54 @@ public class PlaceService {
         return responsesByKakaoPlaceId.values().stream()
                 .limit(limit)
                 .toList();
+    }
+
+    public List<PlaceResponse> searchClickCandidates(PlaceSearchRequest request) {
+        PlaceSearchRequest safeRequest = validateClickCandidateRequest(request);
+        int limit = normalizeLimit(safeRequest.getLimit());
+        int radius = normalizeRadius(safeRequest.getRadius());
+
+        List<PlaceInfo> cachedPlaces = placeCsvStore.findNearby(
+                safeRequest.getLatitude(),
+                safeRequest.getLongitude(),
+                radius
+        );
+
+        if (!cachedPlaces.isEmpty()) {
+            return cachedPlaces.stream()
+                    .map(this::toPlaceResponse)
+                    .limit(limit)
+                    .toList();
+        }
+
+        PlaceSearchRequest kakaoRequest = PlaceSearchRequest.builder()
+                .latitude(safeRequest.getLatitude())
+                .longitude(safeRequest.getLongitude())
+                .radius(radius)
+                .limit(limit)
+                .page(safeRequest.getPage())
+                .build();
+
+        return kakaoLocalService.searchAround(kakaoRequest).stream()
+                .map(this::toPlaceResponse)
+                .limit(limit)
+                .toList();
+    }
+
+    public PlaceResponse confirmPlace(PlaceConfirmRequest request) {
+        validateConfirmRequest(request);
+        placeCsvStore.saveIfAbsent(PlaceInfo.builder()
+                .kakaoPlaceId(request.getKakaoPlaceId())
+                .placeName(request.getPlaceName())
+                .latitude(request.getLatitude())
+                .longitude(request.getLongitude())
+                .phone(request.getPhone())
+                .address(request.getAddress())
+                .kakaoMapUrl(request.getKakaoMapUrl())
+                .groupName(request.getGroupName())
+                .build());
+
+        return getPlaceByKakaoPlaceId(request.getKakaoPlaceId());
     }
 
     public List<PopularPlaceResponse> getPopularPlaces(Integer limit) {
@@ -163,6 +212,29 @@ public class PlaceService {
 
         request.setCategory(category);
         return request;
+    }
+
+    private PlaceSearchRequest validateClickCandidateRequest(PlaceSearchRequest request) {
+        if (request == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Place candidate request is required.");
+        }
+        if (request.getLatitude() == null || request.getLongitude() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "latitude and longitude are required.");
+        }
+
+        return request;
+    }
+
+    private void validateConfirmRequest(PlaceConfirmRequest request) {
+        if (request == null || !StringUtils.hasText(request.getKakaoPlaceId())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "kakaoPlaceId is required.");
+        }
+        if (!StringUtils.hasText(request.getPlaceName())
+                || request.getLatitude() == null
+                || request.getLongitude() == null
+                || !StringUtils.hasText(request.getGroupName())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Place snapshot is required.");
+        }
     }
 
     private void validateKakaoPlaceId(String kakaoPlaceId) {
