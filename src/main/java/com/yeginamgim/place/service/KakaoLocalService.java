@@ -9,6 +9,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.util.UriBuilder;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -19,6 +20,7 @@ public class KakaoLocalService {
     private static final String KAKAO_LOCAL_BASE_URL = "https://dapi.kakao.com";
     private static final int DEFAULT_RADIUS = 2000;
     private static final int DEFAULT_SIZE = 10;
+    private static final List<String> AROUND_SEARCH_CATEGORIES = List.of("cafe", "food", "shop", "park", "culture");
     private static final Map<String, String> CATEGORY_CODES = Map.of(
             "cafe", "CE7",
             "food", "FD6",
@@ -103,6 +105,36 @@ public class KakaoLocalService {
         return List.of();
     }
 
+    public List<PlaceInfo> searchAround(PlaceSearchRequest request) {
+        if (!hasApiKey() || request == null || request.getLatitude() == null || request.getLongitude() == null) {
+            return List.of();
+        }
+
+        int limit = defaultLimit(request.getLimit());
+        Map<String, PlaceInfo> placesByKey = new LinkedHashMap<>();
+        for (String category : AROUND_SEARCH_CATEGORIES) {
+            if (placesByKey.size() >= limit) {
+                break;
+            }
+
+            PlaceSearchRequest categoryRequest = PlaceSearchRequest.builder()
+                    .latitude(request.getLatitude())
+                    .longitude(request.getLongitude())
+                    .radius(request.getRadius())
+                    .category(category)
+                    .page(request.getPage())
+                    .limit(limit - placesByKey.size())
+                    .build();
+
+            searchByCategory(categoryRequest).forEach(place ->
+                    placesByKey.putIfAbsent(placeKey(place), place));
+        }
+
+        return placesByKey.values().stream()
+                .limit(limit)
+                .toList();
+    }
+
     private List<PlaceInfo> searchByKakaoCategoryCode(PlaceSearchRequest request, String categoryCode) {
         if (request.getLatitude() == null || request.getLongitude() == null) {
             return List.of();
@@ -168,6 +200,23 @@ public class KakaoLocalService {
                 .kakaoMapUrl(document.getPlace_url())
                 .groupName(document.getCategory_group_name())
                 .build();
+    }
+
+    private String placeKey(PlaceInfo place) {
+        if (StringUtils.hasText(place.getKakaoPlaceId())) {
+            return "id:" + place.getKakaoPlaceId();
+        }
+
+        return String.join("|",
+                defaultString(place.getPlaceName()),
+                defaultString(place.getAddress()),
+                String.valueOf(place.getLatitude()),
+                String.valueOf(place.getLongitude())
+        ).toLowerCase();
+    }
+
+    private String defaultString(String value) {
+        return value == null ? "" : value;
     }
 
     private boolean hasApiKey() {
