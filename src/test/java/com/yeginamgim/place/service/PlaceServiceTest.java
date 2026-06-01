@@ -23,6 +23,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.argThat;
 
 class PlaceServiceTest {
 
@@ -123,18 +124,20 @@ class PlaceServiceTest {
     }
 
     @Test
-    void findsPlaceFromCacheOnlyByKakaoPlaceId() throws Exception {
+    void categorySearchDefaultsToOneKilometerRadius() throws Exception {
         PlaceService placeService = placeServiceWithCache("""
                 kakao_place_id,place_name,latitude,longitude,phone,address,kakao_map_url,group_name
-                cache-board,Cache Board Cafe,37.4979,127.0276,02-0000-0000,Seoul,https://place.map.kakao.com/cache-board,cafe
                 """);
-        when(traceRepository.countActiveByKakaoPlaceId("cache-board")).thenReturn(3L);
+        when(kakaoLocalService.searchByCategory(org.mockito.ArgumentMatchers.any())).thenReturn(List.of());
 
-        PlaceResponse response = placeService.getPlaceByKakaoPlaceId("cache-board");
+        placeService.searchNearbyPlaces(PlaceSearchRequest.builder()
+                .latitude(37.4979)
+                .longitude(127.0276)
+                .category("cafe")
+                .limit(20)
+                .build());
 
-        assertThat(response.getKakaoPlaceId()).isEqualTo("cache-board");
-        assertThat(response.getPlaceName()).isEqualTo("Cache Board Cafe");
-        verify(kakaoLocalService, never()).findByKakaoPlaceId("cache-board");
+        verify(kakaoLocalService).searchByCategory(argThat(request -> request.getRadius() == 1000));
     }
 
     @Test

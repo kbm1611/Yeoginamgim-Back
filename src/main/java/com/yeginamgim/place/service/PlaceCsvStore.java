@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 
 @Component
@@ -53,22 +54,24 @@ public class PlaceCsvStore {
 
         return findAll().stream()
                 .filter(place -> matchesCategory(place, category))
-                .filter(place -> place.getLatitude() != null && place.getLongitude() != null)
-                .filter(place -> distanceInMeters(latitude, longitude, place.getLatitude(), place.getLongitude()) <= radius)
-                .sorted(Comparator.comparingDouble(place ->
-                        distanceInMeters(latitude, longitude, place.getLatitude(), place.getLongitude())))
+                .filter(place -> isWithinRadius(latitude, longitude, place, radius))
+                .sorted(Comparator.comparingDouble(place -> distanceFrom(latitude, longitude, place)))
                 .toList();
     }
 
     public synchronized void saveIfAbsent(PlaceInfo placeInfo) {
-        if (placeInfo == null || !StringUtils.hasText(placeInfo.getKakaoPlaceId())) {
+        if (placeInfo == null || !hasMinimumIdentity(placeInfo)) {
             return;
         }
 
         List<PlaceInfo> places = new ArrayList<>(findAll());
-        boolean exists = places.stream()
-                .anyMatch(place -> placeInfo.getKakaoPlaceId().equals(place.getKakaoPlaceId()));
-        if (exists) {
+        Optional<PlaceInfo> existing = places.stream()
+                .filter(place -> isSamePlace(place, placeInfo))
+                .findFirst();
+        if (existing.isPresent()) {
+            int index = places.indexOf(existing.get());
+            places.set(index, merge(existing.get(), placeInfo));
+            writeAll(places);
             return;
         }
 
@@ -97,7 +100,7 @@ public class PlaceCsvStore {
         List<String> lines = new ArrayList<>();
         lines.add(HEADER);
         places.stream()
-                .sorted(Comparator.comparing(PlaceInfo::getKakaoPlaceId))
+                .sorted(Comparator.comparing(place -> defaultString(place.getKakaoPlaceId())))
                 .map(this::toCsvLine)
                 .forEach(lines::add);
 
@@ -190,6 +193,64 @@ public class PlaceCsvStore {
 
     private String toString(Double value) {
         return value == null ? "" : value.toString();
+    }
+
+    private boolean isWithinRadius(Double latitude, Double longitude, PlaceInfo place, int radius) {
+        return place.getLatitude() != null
+                && place.getLongitude() != null
+                && distanceInMeters(latitude, longitude, place.getLatitude(), place.getLongitude()) <= radius;
+    }
+
+    private double distanceFrom(Double latitude, Double longitude, PlaceInfo place) {
+        return distanceInMeters(latitude, longitude, place.getLatitude(), place.getLongitude());
+    }
+
+    private boolean hasMinimumIdentity(PlaceInfo placeInfo) {
+        return StringUtils.hasText(placeInfo.getKakaoPlaceId())
+                || (StringUtils.hasText(placeInfo.getPlaceName())
+                && placeInfo.getLatitude() != null
+                && placeInfo.getLongitude() != null);
+    }
+
+    private boolean isSamePlace(PlaceInfo left, PlaceInfo right) {
+        if (StringUtils.hasText(left.getKakaoPlaceId())
+                && StringUtils.hasText(right.getKakaoPlaceId())
+                && left.getKakaoPlaceId().equals(right.getKakaoPlaceId())) {
+            return true;
+        }
+        if (StringUtils.hasText(left.getKakaoPlaceId()) && StringUtils.hasText(right.getKakaoPlaceId())) {
+            return false;
+        }
+
+        return normalize(left.getPlaceName()).equals(normalize(right.getPlaceName()))
+                && sameCoordinate(left.getLatitude(), right.getLatitude())
+                && sameCoordinate(left.getLongitude(), right.getLongitude())
+                && Objects.equals(normalize(left.getAddress()), normalize(right.getAddress()));
+    }
+
+    private boolean sameCoordinate(Double left, Double right) {
+        return left != null && right != null && Math.abs(left - right) < 0.00001;
+    }
+
+    private PlaceInfo merge(PlaceInfo existing, PlaceInfo incoming) {
+        return PlaceInfo.builder()
+                .kakaoPlaceId(firstText(incoming.getKakaoPlaceId(), existing.getKakaoPlaceId()))
+                .placeName(firstText(incoming.getPlaceName(), existing.getPlaceName()))
+                .latitude(incoming.getLatitude() != null ? incoming.getLatitude() : existing.getLatitude())
+                .longitude(incoming.getLongitude() != null ? incoming.getLongitude() : existing.getLongitude())
+                .phone(firstText(incoming.getPhone(), existing.getPhone()))
+                .address(firstText(incoming.getAddress(), existing.getAddress()))
+                .kakaoMapUrl(firstText(incoming.getKakaoMapUrl(), existing.getKakaoMapUrl()))
+                .groupName(firstText(incoming.getGroupName(), existing.getGroupName()))
+                .build();
+    }
+
+    private String firstText(String preferred, String fallback) {
+        return StringUtils.hasText(preferred) ? preferred : fallback;
+    }
+
+    private String defaultString(String value) {
+        return value == null ? "" : value;
     }
 
     private boolean matchesCategory(PlaceInfo place, String category) {

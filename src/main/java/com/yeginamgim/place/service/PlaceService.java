@@ -25,18 +25,13 @@ public class PlaceService {
 
     private static final int DEFAULT_LIMIT = 20;
     private static final int MAX_LIMIT = 20;
-    private static final int DEFAULT_RADIUS = 500;
+    private static final int DEFAULT_RADIUS = 1000;
     private static final Set<String> ALLOWED_NEARBY_CATEGORIES = Set.of("cafe", "food", "shop", "park", "culture");
 
     private final KakaoLocalService kakaoLocalService;
     private final BoardRepository boardRepository;
     private final TraceRepository traceRepository;
     private final PlaceCsvStore placeCsvStore;
-
-    public PlaceResponse getPlaceByKakaoPlaceId(String kakaoPlaceId) {
-        PlaceInfo placeInfo = findPlaceInfoByKakaoPlaceId(kakaoPlaceId);
-        return toPlaceResponse(placeInfo);
-    }
 
     public List<PlaceResponse> searchNearbyPlaces(PlaceSearchRequest request) {
         PlaceSearchRequest safeRequest = validateNearbyRequest(request);
