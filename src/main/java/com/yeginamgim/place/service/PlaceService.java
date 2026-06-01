@@ -33,11 +33,6 @@ public class PlaceService {
     private final TraceRepository traceRepository;
     private final PlaceCsvStore placeCsvStore;
 
-    public PlaceResponse getPlaceByKakaoPlaceId(String kakaoPlaceId) {
-        PlaceInfo placeInfo = findPlaceInfoByKakaoPlaceId(kakaoPlaceId);
-        return toPlaceResponse(placeInfo);
-    }
-
     public List<PlaceResponse> searchNearbyPlaces(PlaceSearchRequest request) {
         PlaceSearchRequest safeRequest = validateNearbyRequest(request);
         int limit = normalizeLimit(safeRequest.getLimit());

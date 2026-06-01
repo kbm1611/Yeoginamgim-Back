@@ -141,21 +141,6 @@ class PlaceServiceTest {
     }
 
     @Test
-    void findsPlaceFromCacheOnlyByKakaoPlaceId() throws Exception {
-        PlaceService placeService = placeServiceWithCache("""
-                kakao_place_id,place_name,latitude,longitude,phone,address,kakao_map_url,group_name
-                cache-board,Cache Board Cafe,37.4979,127.0276,02-0000-0000,Seoul,https://place.map.kakao.com/cache-board,cafe
-                """);
-        when(traceRepository.countActiveByKakaoPlaceId("cache-board")).thenReturn(3L);
-
-        PlaceResponse response = placeService.getPlaceByKakaoPlaceId("cache-board");
-
-        assertThat(response.getKakaoPlaceId()).isEqualTo("cache-board");
-        assertThat(response.getPlaceName()).isEqualTo("Cache Board Cafe");
-        verify(kakaoLocalService, never()).findByKakaoPlaceId("cache-board");
-    }
-
-    @Test
     void popularPlacesUseCacheOnly() throws Exception {
         PlaceService placeService = placeServiceWithCache("""
                 kakao_place_id,place_name,latitude,longitude,phone,address,kakao_map_url,group_name
