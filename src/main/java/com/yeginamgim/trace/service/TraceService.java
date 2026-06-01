@@ -15,6 +15,7 @@ import com.yeginamgim.trace.dto.TraceUpdateRequest;
 import com.yeginamgim.trace.entity.Trace;
 import com.yeginamgim.trace.entity.TraceElement;
 import com.yeginamgim.trace.entity.TraceLike;
+import com.yeginamgim.trace.enums.TraceSortType;
 import com.yeginamgim.trace.enums.TraceStatus;
 import com.yeginamgim.trace.repository.TraceElementRepository;
 import com.yeginamgim.trace.repository.TraceLikeRepository;
@@ -22,12 +23,15 @@ import com.yeginamgim.trace.repository.TraceRepository;
 import com.yeginamgim.user.entity.UserEntity;
 import com.yeginamgim.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -38,6 +42,8 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class TraceService {
 
+    private static final int MAX_TRACE_QUERY_LIMIT = 100;
+
     private final TraceRepository traceRepository;
     private final TraceElementRepository traceElementRepository;
     private final TraceLikeRepository traceLikeRepository;
@@ -47,15 +53,92 @@ public class TraceService {
 
     // board_id 기준 흔적 목록 조회
     @Transactional(readOnly = true)
-    public TraceListResponse getTracesByBoardId(Long boardId) {
+    public TraceListResponse getTracesByBoardId(Long boardId, String sort, Integer limit, LocalDateTime before) {
         BoardEntity board = findBoard(boardId);
+        TraceSortType sortType = parseSortType(sort);
+        Pageable pageable = toPageable(limit);
 
-        List<Trace> traces = traceRepository
-                .findByBoard_BoardIdAndTraceStatusOrderByCreatedAtDescTraceIdDesc(
-                        board.getBoardId(),
-                        TraceStatus.ACTIVE
-                );
+        List<Trace> traces = findBoardTraces(board.getBoardId(), sortType, before, pageable);
 
+        return toTraceListResponse(board, traces);
+    }
+
+    // board_id와 좌표 범위 기준 흔적 목록 조회
+    @Transactional(readOnly = true)
+    public TraceListResponse getTracesByBoardArea(
+            Long boardId,
+            Integer minX,
+            Integer maxX,
+            Integer minY,
+            Integer maxY,
+            String sort,
+            Integer limit,
+            LocalDateTime before
+    ) {
+        validateAreaRange(minX, maxX, minY, maxY);
+
+        BoardEntity board = findBoard(boardId);
+        TraceSortType sortType = parseSortType(sort);
+        Pageable pageable = toPageable(limit);
+
+        List<Trace> traces = findBoardAreaTraces(board.getBoardId(), minX, maxX, minY, maxY, sortType, before, pageable);
+
+        return toTraceListResponse(board, traces);
+    }
+
+    private List<Trace> findBoardTraces(Long boardId, TraceSortType sortType, LocalDateTime before, Pageable pageable) {
+        return switch (sortType) {
+            case OLDEST -> traceRepository.findBoardTracesOldest(boardId, TraceStatus.ACTIVE, before, pageable);
+            case POPULAR -> traceRepository.findBoardTracesPopular(boardId, TraceStatus.ACTIVE, before, pageable);
+            case LATEST -> traceRepository.findBoardTracesLatest(boardId, TraceStatus.ACTIVE, before, pageable);
+        };
+    }
+
+    private List<Trace> findBoardAreaTraces(
+            Long boardId,
+            Integer minX,
+            Integer maxX,
+            Integer minY,
+            Integer maxY,
+            TraceSortType sortType,
+            LocalDateTime before,
+            Pageable pageable
+    ) {
+        return switch (sortType) {
+            case OLDEST -> traceRepository.findBoardAreaTracesOldest(
+                    boardId,
+                    TraceStatus.ACTIVE,
+                    minX,
+                    maxX,
+                    minY,
+                    maxY,
+                    before,
+                    pageable
+            );
+            case POPULAR -> traceRepository.findBoardAreaTracesPopular(
+                    boardId,
+                    TraceStatus.ACTIVE,
+                    minX,
+                    maxX,
+                    minY,
+                    maxY,
+                    before,
+                    pageable
+            );
+            case LATEST -> traceRepository.findBoardAreaTracesLatest(
+                    boardId,
+                    TraceStatus.ACTIVE,
+                    minX,
+                    maxX,
+                    minY,
+                    maxY,
+                    before,
+                    pageable
+            );
+        };
+    }
+
+    private TraceListResponse toTraceListResponse(BoardEntity board, List<Trace> traces) {
         List<Long> traceIds = traces.stream()
                 .map(Trace::getTraceId)
                 .toList();
@@ -157,8 +240,13 @@ public class TraceService {
 
     // trace_id 기준 흔적 숨김 처리
     @Transactional
-    public void hideTrace(Long traceId) {
-        Trace trace = findTrace(traceId);
+    public void hideTrace(Long traceId, Long userId) {
+        validateUserId(userId);
+
+        Trace trace = traceRepository
+                .findByTraceIdAndUser_UserIdAndTraceStatus(traceId, userId, TraceStatus.ACTIVE)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "삭제할 수 있는 흔적을 찾을 수 없습니다."));
+
         trace.hide();
     }
 
@@ -219,6 +307,44 @@ public class TraceService {
         }
 
         validateUserId(request.getUserId());
+    }
+
+    private void validateAreaRange(Integer minX, Integer maxX, Integer minY, Integer maxY) {
+        if (minX == null || maxX == null || minY == null || maxY == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "조회할 좌표 범위는 필수입니다.");
+        }
+
+        if (minX > maxX || minY > maxY) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "최소 좌표는 최대 좌표보다 클 수 없습니다.");
+        }
+    }
+
+    private TraceSortType parseSortType(String sort) {
+        if (sort == null || sort.isBlank()) {
+            return TraceSortType.LATEST;
+        }
+
+        try {
+            return TraceSortType.valueOf(sort.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "sort는 latest, oldest, popular 중 하나여야 합니다.");
+        }
+    }
+
+    private Pageable toPageable(Integer limit) {
+        if (limit == null) {
+            return Pageable.unpaged();
+        }
+
+        if (limit <= 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "limit은 1 이상이어야 합니다.");
+        }
+
+        if (limit > MAX_TRACE_QUERY_LIMIT) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "limit은 최대 100까지 가능합니다.");
+        }
+
+        return PageRequest.of(0, limit);
     }
 
     private BoardEntity findBoard(Long boardId) {

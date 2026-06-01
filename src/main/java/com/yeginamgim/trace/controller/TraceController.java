@@ -9,6 +9,7 @@ import com.yeginamgim.trace.dto.TraceResponse;
 import com.yeginamgim.trace.dto.TraceUpdateRequest;
 import com.yeginamgim.trace.service.TraceService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -22,6 +23,8 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.time.LocalDateTime;
+
 // [3] 공간 보드 위 흔적 기능
 @RestController
 @RequiredArgsConstructor
@@ -32,8 +35,29 @@ public class TraceController {
 
     // board_id 기준 흔적 목록 조회
     @GetMapping("/boards/{boardId}/traces")
-    public TraceListResponse getTracesByBoardId(@PathVariable Long boardId) {
-        return traceService.getTracesByBoardId(boardId);
+    public TraceListResponse getTracesByBoardId(
+            @PathVariable Long boardId,
+            @RequestParam(defaultValue = "latest") String sort,
+            @RequestParam(required = false) Integer limit,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime before
+    ) {
+        return traceService.getTracesByBoardId(boardId, sort, limit, before);
+    }
+
+    // board_id와 좌표 범위 기준 흔적 목록 조회
+    // 예: /api/boards/3/traces/area?minX=0&maxX=100&minY=0&maxY=100&sort=latest&limit=20
+    @GetMapping("/boards/{boardId}/traces/area")
+    public TraceListResponse getTracesByBoardArea(
+            @PathVariable Long boardId,
+            @RequestParam Integer minX,
+            @RequestParam Integer maxX,
+            @RequestParam Integer minY,
+            @RequestParam Integer maxY,
+            @RequestParam(defaultValue = "latest") String sort,
+            @RequestParam(required = false) Integer limit,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime before
+    ) {
+        return traceService.getTracesByBoardArea(boardId, minX, maxX, minY, maxY, sort, limit, before);
     }
 
     // board_id 기준 흔적 생성
@@ -69,8 +93,11 @@ public class TraceController {
     // trace_id 기준 흔적 숨김 처리
     @DeleteMapping("/traces/{traceId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void hideTrace(@PathVariable Long traceId) {
-        traceService.hideTrace(traceId);
+    public void hideTrace(
+            @PathVariable Long traceId,
+            @RequestParam Long userId
+    ) {
+        traceService.hideTrace(traceId, userId);
     }
 
     // trace_id 기준 추천 등록
