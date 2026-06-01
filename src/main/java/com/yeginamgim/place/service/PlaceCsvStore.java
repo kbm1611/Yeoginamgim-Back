@@ -59,17 +59,6 @@ public class PlaceCsvStore {
                 .toList();
     }
 
-    public List<PlaceInfo> findNearby(Double latitude, Double longitude, int radius) {
-        if (latitude == null || longitude == null) {
-            return List.of();
-        }
-
-        return findAll().stream()
-                .filter(place -> isWithinRadius(latitude, longitude, place, radius))
-                .sorted(Comparator.comparingDouble(place -> distanceFrom(latitude, longitude, place)))
-                .toList();
-    }
-
     public synchronized void saveIfAbsent(PlaceInfo placeInfo) {
         if (placeInfo == null || !hasMinimumIdentity(placeInfo)) {
             return;

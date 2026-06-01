@@ -3,7 +3,6 @@ package com.yeginamgim.place.service;
 import com.yeginamgim.board.dto.PlaceInfo;
 import com.yeginamgim.board.entity.BoardEntity;
 import com.yeginamgim.board.repository.BoardRepository;
-import com.yeginamgim.place.dto.request.PlaceConfirmRequest;
 import com.yeginamgim.place.dto.request.PlaceSearchRequest;
 import com.yeginamgim.place.dto.response.PlaceResponse;
 import com.yeginamgim.place.dto.response.PopularPlaceResponse;
@@ -125,58 +124,6 @@ class PlaceServiceTest {
     }
 
     @Test
-    void clickCandidatesReturnCacheWithoutCallingKakao() throws Exception {
-        PlaceService placeService = placeServiceWithCache("""
-                kakao_place_id,place_name,latitude,longitude,phone,address,kakao_map_url,group_name
-                cache-near,Cache Near Place,37.4979,127.0276,02-0000-0000,Seoul,https://place.map.kakao.com/cache-near,cafe
-                cache-far,Cache Far Place,37.5100,127.0400,02-1111-1111,Seoul,https://place.map.kakao.com/cache-far,cafe
-                """);
-        when(boardRepository.findByKakaoPlaceId("cache-near")).thenReturn(Optional.empty());
-        when(traceRepository.countActiveByKakaoPlaceId("cache-near")).thenReturn(0L);
-
-        List<PlaceResponse> responses = placeService.searchClickCandidates(PlaceSearchRequest.builder()
-                .latitude(37.4979)
-                .longitude(127.0276)
-                .radius(100)
-                .limit(20)
-                .build());
-
-        assertThat(responses).extracting(PlaceResponse::getKakaoPlaceId)
-                .containsExactly("cache-near");
-        verify(kakaoLocalService, never()).searchAround(org.mockito.ArgumentMatchers.any());
-    }
-
-    @Test
-    void clickCandidatesUseKakaoAsTemporaryResultsWhenCacheIsEmpty() throws Exception {
-        Path cacheFile = tempDir.resolve("places-cache.csv");
-        Files.writeString(cacheFile, "kakao_place_id,place_name,latitude,longitude,phone,address,kakao_map_url,group_name\n");
-        PlaceCsvStore placeCsvStore = new PlaceCsvStore(cacheFile.toString());
-        PlaceService placeService = new PlaceService(kakaoLocalService, boardRepository, traceRepository, placeCsvStore);
-        when(boardRepository.findByKakaoPlaceId("kakao-temp")).thenReturn(Optional.empty());
-        when(traceRepository.countActiveByKakaoPlaceId("kakao-temp")).thenReturn(0L);
-        when(kakaoLocalService.searchAround(org.mockito.ArgumentMatchers.any())).thenReturn(List.of(
-                PlaceInfo.builder()
-                        .kakaoPlaceId("kakao-temp")
-                        .placeName("Kakao Temporary Place")
-                        .latitude(37.4979)
-                        .longitude(127.0276)
-                        .groupName("cafe")
-                        .build()
-        ));
-
-        List<PlaceResponse> responses = placeService.searchClickCandidates(PlaceSearchRequest.builder()
-                .latitude(37.4979)
-                .longitude(127.0276)
-                .radius(100)
-                .limit(20)
-                .build());
-
-        assertThat(responses).extracting(PlaceResponse::getKakaoPlaceId)
-                .containsExactly("kakao-temp");
-        assertThat(Files.readString(cacheFile)).doesNotContain("kakao-temp");
-    }
-
-    @Test
     void categorySearchDefaultsToOneKilometerRadius() throws Exception {
         PlaceService placeService = placeServiceWithCache("""
                 kakao_place_id,place_name,latitude,longitude,phone,address,kakao_map_url,group_name
@@ -191,30 +138,6 @@ class PlaceServiceTest {
                 .build());
 
         verify(kakaoLocalService).searchByCategory(argThat(request -> request.getRadius() == 1000));
-    }
-
-    @Test
-    void confirmPlaceCachesSelectedTemporaryCandidate() throws Exception {
-        Path cacheFile = tempDir.resolve("places-cache.csv");
-        Files.writeString(cacheFile, "kakao_place_id,place_name,latitude,longitude,phone,address,kakao_map_url,group_name\n");
-        PlaceCsvStore placeCsvStore = new PlaceCsvStore(cacheFile.toString());
-        PlaceService placeService = new PlaceService(kakaoLocalService, boardRepository, traceRepository, placeCsvStore);
-        when(boardRepository.findByKakaoPlaceId("selected-place")).thenReturn(Optional.empty());
-        when(traceRepository.countActiveByKakaoPlaceId("selected-place")).thenReturn(0L);
-
-        PlaceResponse response = placeService.confirmPlace(PlaceConfirmRequest.builder()
-                .kakaoPlaceId("selected-place")
-                .placeName("Selected Cafe")
-                .latitude(37.4979)
-                .longitude(127.0276)
-                .phone("02-0000-0000")
-                .address("Seoul")
-                .kakaoMapUrl("https://place.map.kakao.com/selected-place")
-                .groupName("cafe")
-                .build());
-
-        assertThat(response.getKakaoPlaceId()).isEqualTo("selected-place");
-        assertThat(Files.readString(cacheFile)).contains("selected-place,Selected Cafe");
     }
 
     @Test
