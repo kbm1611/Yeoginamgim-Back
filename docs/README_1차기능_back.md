@@ -609,7 +609,6 @@ GET /api/auth/oauth/google
 ```text
 GET /api/places/nearby
 GET /api/places/popular
-GET /api/places/{kakaoPlaceId}
 ```
 
 ### Board
