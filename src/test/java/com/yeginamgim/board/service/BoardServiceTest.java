@@ -70,6 +70,42 @@ class BoardServiceTest {
                 .isInstanceOf(ResponseStatusException.class);
     }
 
+    @Test
+    void doesNotDuplicateUncachedSnapshotWithSameNameCoordinatesAndAddress() throws Exception {
+        Path cacheFile = tempDir.resolve("places-cache.csv");
+        Files.writeString(cacheFile, """
+                kakao_place_id,place_name,latitude,longitude,phone,address,kakao_map_url,group_name
+                ,Same Cafe,37.4979,127.0276,02-0000-0000,Seoul,https://place.map.kakao.com/old,cafe
+                """);
+        PlaceService placeService = mock(PlaceService.class);
+        when(boardRepository.findByKakaoPlaceId("new-id")).thenReturn(Optional.empty());
+        when(boardRepository.save(any(BoardEntity.class))).thenAnswer(invocation -> {
+            BoardEntity board = invocation.getArgument(0);
+            board.setBoardId(11L);
+            board.setCreatedAt(LocalDateTime.now());
+            return board;
+        });
+        when(placeService.findPlaceInfoByKakaoPlaceId("new-id")).thenAnswer(invocation ->
+                new PlaceCsvStore(cacheFile.toString()).findByKakaoPlaceId("new-id").orElseThrow());
+
+        BoardService boardService = new BoardService(boardRepository, placeService, new PlaceCsvStore(cacheFile.toString()));
+
+        boardService.createBoard(BoardCreateRequest.builder()
+                .kakaoPlaceId("new-id")
+                .placeName("Same Cafe")
+                .latitude(37.4979)
+                .longitude(127.0276)
+                .phone("02-1111-1111")
+                .address("Seoul")
+                .kakaoMapUrl("https://place.map.kakao.com/new-id")
+                .groupName("cafe")
+                .build());
+
+        assertThat(Files.readString(cacheFile).lines()
+                .filter(line -> line.contains("Same Cafe"))
+                .count()).isEqualTo(1);
+    }
+
     private Path emptyCacheFile() throws Exception {
         Path cacheFile = tempDir.resolve("places-cache.csv");
         Files.writeString(cacheFile, "kakao_place_id,place_name,latitude,longitude,phone,address,kakao_map_url,group_name\n");
