@@ -8,7 +8,6 @@ import java.util.List;
 // 흔적 수정 요청 DTO
 @Data
 public class TraceUpdateRequest {
-    private Long userId;
     private Integer traceX;
     private Integer traceY;
     private List<TraceElementUpdateRequest> elements = new ArrayList<>();

@@ -1,5 +1,6 @@
 package com.yeginamgim.report.service;
 
+import com.yeginamgim.auth.jwt.JWTService;
 import com.yeginamgim.report.dto.ReportCreateRequest;
 import com.yeginamgim.report.dto.ReportResponse;
 import com.yeginamgim.report.entity.ReportEntity;
@@ -21,14 +22,15 @@ public class ReportService {
     private final ReportRepository reportRepository;
     private final TraceRepository traceRepository;
     private final UserRepository userRepository;
+    private final JWTService jwtService;
 
     // trace_id 기준 흔적 신고 등록
     @Transactional
-    public ReportResponse createReport(Long traceId, ReportCreateRequest request) {
+    public ReportResponse createReport(Long traceId, String authorization, ReportCreateRequest request) {
         validateCreateRequest(request);
 
         Trace trace = findTrace(traceId);
-        UserEntity user = findUser(request.getUserId());
+        UserEntity user = findUserByToken(authorization);
 
         if (reportRepository.existsByUser_UserIdAndTrace_TraceId(user.getUserId(), trace.getTraceId())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "이미 신고한 흔적입니다.");
@@ -48,10 +50,6 @@ public class ReportService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "신고 요청은 필수입니다.");
         }
 
-        if (request.getUserId() == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "userId는 필수입니다.");
-        }
-
         if (request.getReportKind() == null || request.getReportKind().isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "신고 사유는 필수입니다.");
         }
@@ -62,8 +60,17 @@ public class ReportService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "흔적을 찾을 수 없습니다."));
     }
 
-    private UserEntity findUser(Long userId) {
-        return userRepository.findById(userId)
+    private UserEntity findUserByToken(String authorization) {
+        if (authorization == null || !authorization.startsWith("Bearer ")) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "인증되지 않은 요청입니다.");
+        }
+
+        String email = jwtService.getClaim(authorization);
+        if (email == null || email.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "인증되지 않은 요청입니다.");
+        }
+
+        return userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "사용자를 찾을 수 없습니다."));
     }
 

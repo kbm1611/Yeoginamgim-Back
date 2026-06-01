@@ -2,7 +2,6 @@ package com.yeginamgim.trace.controller;
 
 import com.yeginamgim.trace.dto.TraceCreateRequest;
 import com.yeginamgim.trace.dto.TraceImageUploadResponse;
-import com.yeginamgim.trace.dto.TraceLikeRequest;
 import com.yeginamgim.trace.dto.TraceLikeResponse;
 import com.yeginamgim.trace.dto.TraceListResponse;
 import com.yeginamgim.trace.dto.TraceResponse;
@@ -17,6 +16,7 @@ import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -64,9 +64,10 @@ public class TraceController {
     @PostMapping("/boards/{boardId}/traces")
     public TraceResponse createTrace(
             @PathVariable Long boardId,
+            @RequestHeader(value = "Authorization", required = false) String authorization,
             @RequestBody TraceCreateRequest request
     ) {
-        return traceService.createTrace(boardId, request);
+        return traceService.createTrace(boardId, authorization, request);
     }
 
     // trace_id 기준 흔적 상세 조회
@@ -85,9 +86,10 @@ public class TraceController {
     @PatchMapping("/traces/{traceId}")
     public TraceResponse updateTrace(
             @PathVariable Long traceId,
+            @RequestHeader(value = "Authorization", required = false) String authorization,
             @RequestBody TraceUpdateRequest request
     ) {
-        return traceService.updateTrace(traceId, request);
+        return traceService.updateTrace(traceId, authorization, request);
     }
 
     // trace_id 기준 흔적 숨김 처리
@@ -95,26 +97,26 @@ public class TraceController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void hideTrace(
             @PathVariable Long traceId,
-            @RequestParam Long userId
+            @RequestHeader(value = "Authorization", required = false) String authorization
     ) {
-        traceService.hideTrace(traceId, userId);
+        traceService.hideTrace(traceId, authorization);
     }
 
     // trace_id 기준 추천 등록
     @PostMapping("/traces/{traceId}/likes")
     public TraceLikeResponse addLike(
             @PathVariable Long traceId,
-            @RequestBody TraceLikeRequest request
+            @RequestHeader(value = "Authorization", required = false) String authorization
     ) {
-        return traceService.addLike(traceId, request.getUserId());
+        return traceService.addLike(traceId, authorization);
     }
 
     // trace_id 기준 추천 취소
     @DeleteMapping("/traces/{traceId}/likes")
     public TraceLikeResponse removeLike(
             @PathVariable Long traceId,
-            @RequestParam Long userId
+            @RequestHeader(value = "Authorization", required = false) String authorization
     ) {
-        return traceService.removeLike(traceId, userId);
+        return traceService.removeLike(traceId, authorization);
     }
 }

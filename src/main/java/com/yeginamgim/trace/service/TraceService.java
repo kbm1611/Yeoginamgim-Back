@@ -1,5 +1,6 @@
 package com.yeginamgim.trace.service;
 
+import com.yeginamgim.auth.jwt.JWTService;
 import com.yeginamgim.board.entity.BoardEntity;
 import com.yeginamgim.board.repository.BoardRepository;
 import com.yeginamgim.global.file.FileService;
@@ -50,6 +51,7 @@ public class TraceService {
     private final BoardRepository boardRepository;
     private final UserRepository userRepository;
     private final FileService fileService;
+    private final JWTService jwtService;
 
     // board_id 기준 흔적 목록 조회
     @Transactional(readOnly = true)
@@ -165,11 +167,11 @@ public class TraceService {
 
     // board_id 기준 흔적 생성
     @Transactional
-    public TraceResponse createTrace(Long boardId, TraceCreateRequest request) {
+    public TraceResponse createTrace(Long boardId, String authorization, TraceCreateRequest request) {
         validateCreateRequest(request);
 
         BoardEntity board = findBoard(boardId);
-        UserEntity user = findUser(request.getUserId());
+        UserEntity user = findUserByToken(authorization);
 
         Trace trace = traceRepository.save(Trace.builder()
                 .board(board)
@@ -216,11 +218,12 @@ public class TraceService {
 
     // trace_id 기준 흔적 수정
     @Transactional
-    public TraceResponse updateTrace(Long traceId, TraceUpdateRequest request) {
+    public TraceResponse updateTrace(Long traceId, String authorization, TraceUpdateRequest request) {
         validateUpdateRequest(request);
+        UserEntity user = findUserByToken(authorization);
 
         Trace trace = traceRepository
-                .findByTraceIdAndUser_UserIdAndTraceStatus(traceId, request.getUserId(), TraceStatus.ACTIVE)
+                .findByTraceIdAndUser_UserIdAndTraceStatus(traceId, user.getUserId(), TraceStatus.ACTIVE)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "수정할 수 있는 흔적을 찾을 수 없습니다."));
 
         if (request.getTraceX() != null) {
@@ -240,11 +243,11 @@ public class TraceService {
 
     // trace_id 기준 흔적 숨김 처리
     @Transactional
-    public void hideTrace(Long traceId, Long userId) {
-        validateUserId(userId);
+    public void hideTrace(Long traceId, String authorization) {
+        UserEntity user = findUserByToken(authorization);
 
         Trace trace = traceRepository
-                .findByTraceIdAndUser_UserIdAndTraceStatus(traceId, userId, TraceStatus.ACTIVE)
+                .findByTraceIdAndUser_UserIdAndTraceStatus(traceId, user.getUserId(), TraceStatus.ACTIVE)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "삭제할 수 있는 흔적을 찾을 수 없습니다."));
 
         trace.hide();
@@ -252,10 +255,10 @@ public class TraceService {
 
     // trace_id 기준 추천 등록
     @Transactional
-    public TraceLikeResponse addLike(Long traceId, Long userId) {
+    public TraceLikeResponse addLike(Long traceId, String authorization) {
         Trace trace = findTrace(traceId);
-        validateUserId(userId);
-        UserEntity user = findUser(userId);
+        UserEntity user = findUserByToken(authorization);
+        Long userId = user.getUserId();
 
         if (!traceLikeRepository.existsByUser_UserIdAndTrace_TraceId(userId, traceId)) {
             traceLikeRepository.save(TraceLike.builder()
@@ -269,10 +272,9 @@ public class TraceService {
 
     // trace_id 기준 추천 취소
     @Transactional
-    public TraceLikeResponse removeLike(Long traceId, Long userId) {
+    public TraceLikeResponse removeLike(Long traceId, String authorization) {
         findTrace(traceId);
-        validateUserId(userId);
-        findUser(userId);
+        Long userId = findUserByToken(authorization).getUserId();
 
         if (traceLikeRepository.existsByUser_UserIdAndTrace_TraceId(userId, traceId)) {
             traceLikeRepository.deleteByUser_UserIdAndTrace_TraceId(userId, traceId);
@@ -286,18 +288,8 @@ public class TraceService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "흔적 생성 요청은 필수입니다.");
         }
 
-        if (request.getUserId() == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "userId는 필수입니다.");
-        }
-
         if (request.getTraceX() == null || request.getTraceY() == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "흔적 좌표는 필수입니다.");
-        }
-    }
-
-    private void validateUserId(Long userId) {
-        if (userId == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "userId는 필수입니다.");
         }
     }
 
@@ -305,8 +297,6 @@ public class TraceService {
         if (request == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "흔적 수정 요청은 필수입니다.");
         }
-
-        validateUserId(request.getUserId());
     }
 
     private void validateAreaRange(Integer minX, Integer maxX, Integer minY, Integer maxY) {
@@ -352,8 +342,17 @@ public class TraceService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "보드를 찾을 수 없습니다."));
     }
 
-    private UserEntity findUser(Long userId) {
-        return userRepository.findById(userId)
+    private UserEntity findUserByToken(String authorization) {
+        if (authorization == null || !authorization.startsWith("Bearer ")) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "인증되지 않은 요청입니다.");
+        }
+
+        String email = jwtService.getClaim(authorization);
+        if (email == null || email.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "인증되지 않은 요청입니다.");
+        }
+
+        return userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "사용자를 찾을 수 없습니다."));
     }
 

@@ -5,6 +5,7 @@ import com.yeginamgim.archive.dto.ArchiveBoardListResponse;
 import com.yeginamgim.archive.dto.ArchiveCalendarResponse;
 import com.yeginamgim.archive.dto.ArchiveDateGroupResponse;
 import com.yeginamgim.archive.dto.ArchiveTraceListResponse;
+import com.yeginamgim.auth.jwt.JWTService;
 import com.yeginamgim.board.dto.PlaceInfo;
 import com.yeginamgim.board.entity.BoardEntity;
 import com.yeginamgim.board.service.BoardService;
@@ -42,11 +43,12 @@ public class ArchiveService {
     private final TraceLikeRepository traceLikeRepository;
     private final UserRepository userRepository;
     private final BoardService boardService;
+    private final JWTService jwtService;
 
     // 내가 남긴 흔적 전체 조회
     @Transactional(readOnly = true)
-    public ArchiveTraceListResponse getMyTraces(Long userId) {
-        findUser(userId);
+    public ArchiveTraceListResponse getMyTraces(String authorization) {
+        Long userId = findUserByToken(authorization).getUserId();
 
         List<Trace> traces = traceRepository
                 .findByUser_UserIdAndTraceStatusOrderByCreatedAtDescTraceIdDesc(userId, TraceStatus.ACTIVE);
@@ -59,8 +61,8 @@ public class ArchiveService {
 
     // 내가 남긴 흔적 개별 조회
     @Transactional(readOnly = true)
-    public TraceResponse getMyTrace(Long userId, Long traceId) {
-        findUser(userId);
+    public TraceResponse getMyTrace(String authorization, Long traceId) {
+        Long userId = findUserByToken(authorization).getUserId();
 
         Trace trace = traceRepository
                 .findByTraceIdAndUser_UserIdAndTraceStatus(traceId, userId, TraceStatus.ACTIVE)
@@ -73,8 +75,8 @@ public class ArchiveService {
 
     // 날짜별 기록 조회
     @Transactional(readOnly = true)
-    public ArchiveCalendarResponse getCalendar(Long userId, int year, int month) {
-        findUser(userId);
+    public ArchiveCalendarResponse getCalendar(String authorization, int year, int month) {
+        Long userId = findUserByToken(authorization).getUserId();
         validateMonth(month);
 
         YearMonth yearMonth = YearMonth.of(year, month);
@@ -114,8 +116,8 @@ public class ArchiveService {
 
     // 공간별 추억 아카이브 조회
     @Transactional(readOnly = true)
-    public ArchiveBoardListResponse getBoardArchives(Long userId) {
-        findUser(userId);
+    public ArchiveBoardListResponse getBoardArchives(String authorization) {
+        Long userId = findUserByToken(authorization).getUserId();
 
         List<Trace> traces = traceRepository
                 .findByUser_UserIdAndTraceStatusOrderByCreatedAtDescTraceIdDesc(userId, TraceStatus.ACTIVE);
@@ -162,8 +164,8 @@ public class ArchiveService {
 
     // 내가 작성한 흔적 중 좋아요를 받은 흔적 조회
     @Transactional(readOnly = true)
-    public ArchiveTraceListResponse getReceivedLikeTraces(Long userId) {
-        findUser(userId);
+    public ArchiveTraceListResponse getReceivedLikeTraces(String authorization) {
+        Long userId = findUserByToken(authorization).getUserId();
 
         List<Trace> traces = traceRepository
                 .findByUser_UserIdAndTraceStatusOrderByCreatedAtDescTraceIdDesc(userId, TraceStatus.ACTIVE);
@@ -178,12 +180,17 @@ public class ArchiveService {
                 .build();
     }
 
-    private UserEntity findUser(Long userId) {
-        if (userId == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "userId는 필수입니다.");
+    private UserEntity findUserByToken(String authorization) {
+        if (authorization == null || !authorization.startsWith("Bearer ")) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "인증되지 않은 요청입니다.");
         }
 
-        return userRepository.findById(userId)
+        String email = jwtService.getClaim(authorization);
+        if (email == null || email.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "인증되지 않은 요청입니다.");
+        }
+
+        return userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "사용자를 찾을 수 없습니다."));
     }
 
@@ -223,6 +230,7 @@ public class ArchiveService {
                 .traceY(trace.getTraceY())
                 .traceStatus(trace.getTraceStatus().name())
                 .createdAt(trace.getCreatedAt())
+                .updatedAt(trace.getUpdatedAt())
                 .likeCount(traceLikeRepository.countByTrace_TraceId(trace.getTraceId()))
                 .elements(elements.stream()
                         .map(this::toTraceElementResponse)
@@ -239,6 +247,8 @@ public class ArchiveService {
                 .elementX(element.getElementX())
                 .elementY(element.getElementY())
                 .styleJson(element.getStyleJson())
+                .createdAt(element.getCreatedAt())
+                .updatedAt(element.getUpdatedAt())
                 .build();
     }
 }
