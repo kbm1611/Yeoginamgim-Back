@@ -1,13 +1,16 @@
 package com.yeginamgim.auth.service;
 
+import com.yeginamgim.auth.dto.request.LoginRequestDto;
 import com.yeginamgim.auth.dto.response.LoginResponseDto;
 import com.yeginamgim.auth.jwt.JWTService;
 import com.yeginamgim.auth.dto.OAuthUserInfoDto;
 import com.yeginamgim.global.exception.DuplicateMemberException;
+import com.yeginamgim.global.exception.LoginFailedException;
 import com.yeginamgim.user.entity.UserEntity;
 import com.yeginamgim.user.enums.LoginProvider;
 import com.yeginamgim.user.repository.UserRepository;
 import org.junit.jupiter.api.Test;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
 import java.util.Optional;
 
@@ -31,6 +34,26 @@ class AuthServiceTest {
             kakaoOAuthClientService,
             googleOAuthClientService
     );
+
+    @Test
+    void loginRejectsSocialAccountEvenWhenPasswordExists() {
+        UserEntity socialUser = UserEntity.builder()
+                .email("kakao@example.com")
+                .password(new BCryptPasswordEncoder().encode("password"))
+                .nickname("kakao-user")
+                .provider(LoginProvider.KAKAO)
+                .providerId("kakao-provider-id")
+                .build();
+        LoginRequestDto request = LoginRequestDto.builder()
+                .email("kakao@example.com")
+                .password("password")
+                .build();
+
+        when(userRepository.findByEmail("kakao@example.com")).thenReturn(Optional.of(socialUser));
+
+        assertThatThrownBy(() -> authService.login(request))
+                .isInstanceOf(LoginFailedException.class);
+    }
 
     @Test
     void kakaoLoginUsesOAuthClientAndIssuesToken() {

@@ -28,6 +28,10 @@ public class AuthService {
         UserEntity userEntity = userRepo.findByEmail(loginReqDto.getEmail())
                 .orElseThrow(LoginFailedException::new);
 
+        if (userEntity.getProvider() != LoginProvider.LOCAL || userEntity.getPassword() == null) {
+            throw new LoginFailedException();
+        }
+
         boolean isPasswordMatch = passwordEncoder.matches(
                 loginReqDto.getPassword(),
                 userEntity.getPassword()
