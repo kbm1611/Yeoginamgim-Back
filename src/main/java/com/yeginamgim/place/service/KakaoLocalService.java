@@ -4,9 +4,11 @@ import com.yeginamgim.board.dto.PlaceInfo;
 import com.yeginamgim.place.dto.request.PlaceSearchRequest;
 import lombok.Data;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.util.UriBuilder;
 
 import java.util.List;
@@ -33,10 +35,14 @@ public class KakaoLocalService {
     private final String restApiKey;
 
     public KakaoLocalService(@Value("${kakao.rest-api-key:}") String restApiKey) {
-        this.restApiKey = restApiKey;
-        this.restClient = RestClient.builder()
+        this(restApiKey, RestClient.builder()
                 .baseUrl(KAKAO_LOCAL_BASE_URL)
-                .build();
+                .build());
+    }
+
+    KakaoLocalService(String restApiKey, RestClient restClient) {
+        this.restApiKey = restApiKey;
+        this.restClient = restClient;
     }
 
     public Optional<PlaceInfo> findByKakaoPlaceId(String kakaoPlaceId) {
@@ -73,7 +79,7 @@ public class KakaoLocalService {
                     .map(this::toPlaceInfo)
                     .toList();
         } catch (RuntimeException exception) {
-            return List.of();
+            throw kakaoUnavailable(exception);
         }
     }
 
@@ -123,8 +129,16 @@ public class KakaoLocalService {
                     .map(this::toPlaceInfo)
                     .toList();
         } catch (RuntimeException exception) {
-            return List.of();
+            throw kakaoUnavailable(exception);
         }
+    }
+
+    private ResponseStatusException kakaoUnavailable(RuntimeException exception) {
+        return new ResponseStatusException(
+                HttpStatus.BAD_GATEWAY,
+                "Failed to search places from Kakao Local API.",
+                exception
+        );
     }
 
     private java.net.URI keywordSearchUri(UriBuilder uriBuilder, PlaceSearchRequest request) {
