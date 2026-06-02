@@ -1,11 +1,11 @@
 package com.yeginamgim.place.service;
 
 import com.yeginamgim.place.dto.request.PlaceSearchRequest;
+import com.yeginamgim.global.exception.KakaoLocalApiException;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
-import org.springframework.web.server.ResponseStatusException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -37,9 +37,8 @@ class KakaoLocalServiceTest {
         assertThatThrownBy(() -> kakaoLocalService.searchByKeyword(PlaceSearchRequest.builder()
                 .query("cafe")
                 .build()))
-                .isInstanceOf(ResponseStatusException.class)
-                .satisfies(exception -> assertThat(((ResponseStatusException) exception).getStatusCode())
-                        .isEqualTo(HttpStatus.BAD_GATEWAY));
+                .isInstanceOf(KakaoLocalApiException.class)
+                .hasMessage("카카오 Local API 호출에 실패했습니다.");
 
         server.verify();
     }
@@ -60,9 +59,8 @@ class KakaoLocalServiceTest {
                 .longitude(127.0276)
                 .radius(1000)
                 .build()))
-                .isInstanceOf(ResponseStatusException.class)
-                .satisfies(exception -> assertThat(((ResponseStatusException) exception).getStatusCode())
-                        .isEqualTo(HttpStatus.BAD_GATEWAY));
+                .isInstanceOf(KakaoLocalApiException.class)
+                .hasMessage("카카오 Local API 호출에 실패했습니다.");
 
         server.verify();
     }
