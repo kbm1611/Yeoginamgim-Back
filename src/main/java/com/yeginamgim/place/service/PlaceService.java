@@ -18,6 +18,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -26,6 +28,7 @@ public class PlaceService {
     private static final int DEFAULT_LIMIT = 20;
     private static final int MAX_LIMIT = 20;
     private static final int DEFAULT_RADIUS = 1000;
+    private static final int MAX_RADIUS = 20000;
     private static final Set<String> ALLOWED_NEARBY_CATEGORIES = Set.of("cafe", "food", "shop", "park", "culture");
 
     private final KakaoLocalService kakaoLocalService;
@@ -45,8 +48,7 @@ public class PlaceService {
                 radius
         );
 
-        List<PlaceResponse> cachedResponses = cachedPlaces.stream()
-                .map(this::toPlaceResponse)
+        List<PlaceResponse> cachedResponses = toPlaceResponses(cachedPlaces).stream()
                 .sorted((left, right) -> compareCachedResponses(
                         left,
                         right,
@@ -69,8 +71,7 @@ public class PlaceService {
                     .page(safeRequest.getPage())
                     .build();
 
-            kakaoLocalService.searchByCategory(kakaoRequest).stream()
-                    .map(this::toPlaceResponse)
+            toPlaceResponses(kakaoLocalService.searchByCategory(kakaoRequest)).stream()
                     .forEach(response -> responsesByKakaoPlaceId.putIfAbsent(response.getKakaoPlaceId(), response));
         }
 
@@ -82,11 +83,21 @@ public class PlaceService {
     public List<PopularPlaceResponse> getPopularPlaces(Integer limit) {
         int normalizedLimit = normalizeLimit(limit);
         AtomicInteger rank = new AtomicInteger(1);
+        List<TraceRepository.PlaceTraceCount> traceCounts = traceRepository.countActiveTracesByPlace();
+        Map<String, PlaceInfo> placeInfosByKakaoPlaceId = placeCsvStore.findAll().stream()
+                .filter(placeInfo -> StringUtils.hasText(placeInfo.getKakaoPlaceId()))
+                .collect(Collectors.toMap(
+                        PlaceInfo::getKakaoPlaceId,
+                        Function.identity(),
+                        (left, right) -> left
+                ));
+        Map<String, Long> boardIdsByKakaoPlaceId = findBoardIds(traceCounts.stream()
+                .map(TraceRepository.PlaceTraceCount::getKakaoPlaceId)
+                .toList());
 
-        return traceRepository.countActiveTracesByPlace().stream()
-                .limit(normalizedLimit)
+        return traceCounts.stream()
                 .map(count -> {
-                    PlaceInfo placeInfo = placeCsvStore.findByKakaoPlaceId(count.getKakaoPlaceId()).orElse(null);
+                    PlaceInfo placeInfo = placeInfosByKakaoPlaceId.get(count.getKakaoPlaceId());
                     if (placeInfo == null) {
                         return null;
                     }
@@ -95,10 +106,11 @@ public class PlaceService {
                             rank.getAndIncrement(),
                             placeInfo,
                             count.getTraceCount(),
-                            findBoardId(placeInfo.getKakaoPlaceId())
+                            boardIdsByKakaoPlaceId.get(placeInfo.getKakaoPlaceId())
                     );
                 })
                 .filter(response -> response != null)
+                .limit(normalizedLimit)
                 .toList();
     }
 
@@ -109,18 +121,66 @@ public class PlaceService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Place not found in local cache."));
     }
 
-    private PlaceResponse toPlaceResponse(PlaceInfo placeInfo) {
+    private List<PlaceResponse> toPlaceResponses(List<PlaceInfo> placeInfos) {
+        Map<String, Long> traceCountsByKakaoPlaceId = findTraceCounts(placeInfos);
+        Map<String, Long> boardIdsByKakaoPlaceId = findBoardIds(placeInfos.stream()
+                .map(PlaceInfo::getKakaoPlaceId)
+                .toList());
+
+        return placeInfos.stream()
+                .map(placeInfo -> toPlaceResponse(
+                        placeInfo,
+                        traceCountsByKakaoPlaceId,
+                        boardIdsByKakaoPlaceId
+                ))
+                .toList();
+    }
+
+    private PlaceResponse toPlaceResponse(
+            PlaceInfo placeInfo,
+            Map<String, Long> traceCountsByKakaoPlaceId,
+            Map<String, Long> boardIdsByKakaoPlaceId
+    ) {
         return PlaceResponse.from(
                 placeInfo,
-                traceRepository.countActiveByKakaoPlaceId(placeInfo.getKakaoPlaceId()),
-                findBoardId(placeInfo.getKakaoPlaceId())
+                traceCountsByKakaoPlaceId.getOrDefault(placeInfo.getKakaoPlaceId(), 0L),
+                boardIdsByKakaoPlaceId.get(placeInfo.getKakaoPlaceId())
         );
     }
 
-    private Long findBoardId(String kakaoPlaceId) {
-        return boardRepository.findByKakaoPlaceId(kakaoPlaceId)
-                .map(BoardEntity::getBoardId)
-                .orElse(null);
+    private Map<String, Long> findTraceCounts(List<PlaceInfo> placeInfos) {
+        List<String> kakaoPlaceIds = placeInfos.stream()
+                .map(PlaceInfo::getKakaoPlaceId)
+                .filter(StringUtils::hasText)
+                .distinct()
+                .toList();
+        if (kakaoPlaceIds.isEmpty()) {
+            return Map.of();
+        }
+
+        return traceRepository.countActiveByKakaoPlaceIds(kakaoPlaceIds).stream()
+                .collect(Collectors.toMap(
+                        TraceRepository.PlaceTraceCount::getKakaoPlaceId,
+                        count -> defaultLong(count.getTraceCount()),
+                        (left, right) -> left
+                ));
+    }
+
+    private Map<String, Long> findBoardIds(List<String> kakaoPlaceIds) {
+        List<String> uniqueKakaoPlaceIds = kakaoPlaceIds.stream()
+                .filter(StringUtils::hasText)
+                .distinct()
+                .toList();
+        if (uniqueKakaoPlaceIds.isEmpty()) {
+            return Map.of();
+        }
+
+        return boardRepository.findByKakaoPlaceIdIn(uniqueKakaoPlaceIds).stream()
+                .collect(Collectors.toMap(
+                        BoardEntity::getKakaoPlaceId,
+                        BoardEntity::getBoardId,
+                        (left, right) -> left
+                ));
     }
 
     private int compareCachedResponses(PlaceResponse left, PlaceResponse right, Double latitude, Double longitude) {
@@ -146,6 +206,12 @@ public class PlaceService {
         }
         if (request.getLatitude() == null || request.getLongitude() == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "latitude and longitude are required.");
+        }
+        if (!isValidLatitude(request.getLatitude()) || !isValidLongitude(request.getLongitude())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "latitude or longitude is out of range.");
+        }
+        if (request.getRadius() != null && (request.getRadius() <= 0 || request.getRadius() > MAX_RADIUS)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "radius must be between 1 and 20000 meters.");
         }
         if (!StringUtils.hasText(request.getCategory())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "category is required.");
@@ -176,6 +242,14 @@ public class PlaceService {
 
     private int normalizeRadius(Integer radius) {
         return radius == null || radius <= 0 ? DEFAULT_RADIUS : radius;
+    }
+
+    private boolean isValidLatitude(Double latitude) {
+        return latitude != null && !latitude.isNaN() && !latitude.isInfinite() && latitude >= -90 && latitude <= 90;
+    }
+
+    private boolean isValidLongitude(Double longitude) {
+        return longitude != null && !longitude.isNaN() && !longitude.isInfinite() && longitude >= -180 && longitude <= 180;
     }
 
     private long defaultLong(Long value) {
