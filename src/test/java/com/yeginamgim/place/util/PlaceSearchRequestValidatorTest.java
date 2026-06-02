@@ -38,8 +38,8 @@ class PlaceSearchRequestValidatorTest {
 
     @Test
     void normalizeLimitAndRadiusApplyDefaultsAndMaximums() {
-        assertThat(validator.normalizeLimit(null)).isEqualTo(20);
-        assertThat(validator.normalizeLimit(100)).isEqualTo(20);
+        assertThat(validator.normalizeLimit(null)).isEqualTo(15);
+        assertThat(validator.normalizeLimit(100)).isEqualTo(15);
         assertThat(validator.normalizeRadius(null)).isEqualTo(1000);
     }
 }
