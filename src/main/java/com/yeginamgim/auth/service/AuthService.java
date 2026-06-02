@@ -13,6 +13,7 @@ import com.yeginamgim.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -24,6 +25,7 @@ public class AuthService {
 
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
+    @Transactional(readOnly = true)
     public LoginResponseDto login(LoginRequestDto loginReqDto) {
         UserEntity userEntity = userRepo.findByEmail(loginReqDto.getEmail())
                 .orElseThrow(LoginFailedException::new);
@@ -49,6 +51,7 @@ public class AuthService {
         return kakaoOAuthClientService.getLoginUrl();
     }
 
+    @Transactional
     public LoginResponseDto kakaoLogin(String code) {
         return socialLogin(kakaoOAuthClientService.fetchUserInfo(code));
     }
@@ -57,6 +60,7 @@ public class AuthService {
         return googleOAuthClientService.getLoginUrl();
     }
 
+    @Transactional
     public LoginResponseDto googleLogin(String code) {
         return socialLogin(googleOAuthClientService.fetchUserInfo(code));
     }
@@ -71,6 +75,7 @@ public class AuthService {
         );
     }
 
+    @Transactional
     public LoginResponseDto socialLogin(
             LoginProvider provider,
             String providerId,
