@@ -5,7 +5,7 @@ import com.yeginamgim.board.dto.BoardDetailResponse;
 import com.yeginamgim.board.dto.PlaceInfo;
 import com.yeginamgim.board.entity.BoardEntity;
 import com.yeginamgim.board.repository.BoardRepository;
-import com.yeginamgim.place.service.PlaceCsvStore;
+import com.yeginamgim.place.repository.PlaceCsvStore;
 import com.yeginamgim.place.service.PlaceService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
