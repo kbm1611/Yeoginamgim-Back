@@ -13,6 +13,7 @@ import com.yeginamgim.place.util.PlaceSearchRequestValidator;
 import com.yeginamgim.trace.repository.TraceRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.util.LinkedHashMap;
@@ -33,6 +34,7 @@ public class PlaceService {
     private final PlaceSearchRequestValidator placeSearchRequestValidator;
 
     // 주변 장소 조회
+    @Transactional(readOnly = true)
     public List<PlaceResponse> searchNearbyPlaces(PlaceSearchRequest request) {
 
         // 정상적인 요청인지 검증
@@ -89,6 +91,7 @@ public class PlaceService {
     }
 
     // 인기 장소 목록 조회
+    @Transactional(readOnly = true)
     public List<PopularPlaceResponse> getPopularPlaces(Integer limit) {
         int normalizedLimit = placeSearchRequestValidator.normalizeLimit(limit);
         // 인기 순위를 붙이 위한 카운터. 람다식 안에서 쓰기 위한 객체
@@ -130,6 +133,7 @@ public class PlaceService {
     }
 
     // kakaoPlaceID로 CSV 캐시에서 장소 하나를 찾는 메소드
+    @Transactional(readOnly = true)
     public PlaceInfo findPlaceInfoByKakaoPlaceId(String kakaoPlaceId) {
         placeSearchRequestValidator.validateKakaoPlaceId(kakaoPlaceId);
 

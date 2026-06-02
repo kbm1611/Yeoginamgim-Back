@@ -4,6 +4,7 @@ import com.yeginamgim.auth.dto.request.LoginRequestDto;
 import com.yeginamgim.auth.dto.response.LoginResponseDto;
 import com.yeginamgim.auth.service.AuthService;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -23,7 +24,7 @@ public class AuthController {
 
     // 일반 로그인 요청을 처리하고 JWT가 포함된 로그인 응답을 반환한다.
     @PostMapping("login")
-    public ResponseEntity<?> login(@RequestBody LoginRequestDto loginReqDto) {
+    public ResponseEntity<?> login(@Valid @RequestBody LoginRequestDto loginReqDto) {
         LoginResponseDto result = authSvc.login(loginReqDto);
         return ResponseEntity.ok(result);
     }

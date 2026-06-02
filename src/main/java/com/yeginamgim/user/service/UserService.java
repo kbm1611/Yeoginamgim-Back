@@ -9,11 +9,11 @@ import com.yeginamgim.user.dto.response.UserInfoResponseDto;
 import com.yeginamgim.user.dto.response.UserSignupResponseDto;
 import com.yeginamgim.user.entity.UserEntity;
 import com.yeginamgim.user.repository.UserRepository;
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -23,6 +23,7 @@ public class UserService {
 
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
+    @Transactional
     public UserSignupResponseDto signup(UserSignupRequestDto userReqDto) {
         if (userRepo.findByEmail(userReqDto.getEmail()).isPresent()) {
             throw new DuplicateMemberException();
@@ -52,6 +53,7 @@ public class UserService {
         }
     }
 
+    @Transactional(readOnly = true)
     public UserInfoResponseDto getMyInfo(String email) {
         UserEntity userEntity = userRepo.findByEmail(email)
                 .orElseThrow(UserNotFoundException::new);
