@@ -3,13 +3,13 @@ package com.yeginamgim.place.service;
 import com.yeginamgim.board.dto.PlaceInfo;
 import com.yeginamgim.board.entity.BoardEntity;
 import com.yeginamgim.board.repository.BoardRepository;
+import com.yeginamgim.global.exception.InvalidPlaceRequestException;
 import com.yeginamgim.place.dto.request.PlaceSearchRequest;
 import com.yeginamgim.place.dto.response.PlaceResponse;
 import com.yeginamgim.place.dto.response.PopularPlaceResponse;
 import com.yeginamgim.trace.repository.TraceRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -45,8 +45,8 @@ class PlaceServiceTest {
                 .latitude(37.4979)
                 .longitude(127.0276)
                 .build()))
-                .isInstanceOf(ResponseStatusException.class)
-                .hasMessageContaining("400");
+                .isInstanceOf(InvalidPlaceRequestException.class)
+                .hasMessage("카테고리는 필수입니다.");
     }
 
     @Test
@@ -60,16 +60,16 @@ class PlaceServiceTest {
                 .longitude(127.0276)
                 .category("cafe")
                 .build()))
-                .isInstanceOf(ResponseStatusException.class)
-                .hasMessageContaining("400");
+                .isInstanceOf(InvalidPlaceRequestException.class)
+                .hasMessage("위도 또는 경도 범위가 올바르지 않습니다.");
 
         assertThatThrownBy(() -> placeService.searchNearbyPlaces(PlaceSearchRequest.builder()
                 .latitude(37.4979)
                 .longitude(-181.0)
                 .category("cafe")
                 .build()))
-                .isInstanceOf(ResponseStatusException.class)
-                .hasMessageContaining("400");
+                .isInstanceOf(InvalidPlaceRequestException.class)
+                .hasMessage("위도 또는 경도 범위가 올바르지 않습니다.");
     }
 
     @Test
@@ -84,8 +84,8 @@ class PlaceServiceTest {
                 .category("cafe")
                 .radius(0)
                 .build()))
-                .isInstanceOf(ResponseStatusException.class)
-                .hasMessageContaining("400");
+                .isInstanceOf(InvalidPlaceRequestException.class)
+                .hasMessage("반경은 1m 이상 20000m 이하여야 합니다.");
 
         assertThatThrownBy(() -> placeService.searchNearbyPlaces(PlaceSearchRequest.builder()
                 .latitude(37.4979)
@@ -93,8 +93,8 @@ class PlaceServiceTest {
                 .category("cafe")
                 .radius(20001)
                 .build()))
-                .isInstanceOf(ResponseStatusException.class)
-                .hasMessageContaining("400");
+                .isInstanceOf(InvalidPlaceRequestException.class)
+                .hasMessage("반경은 1m 이상 20000m 이하여야 합니다.");
     }
 
     @Test
