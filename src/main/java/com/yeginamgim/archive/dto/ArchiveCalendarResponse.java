@@ -20,4 +20,18 @@ public class ArchiveCalendarResponse {
 
     @Builder.Default
     private List<ArchiveDateGroupResponse> days = new ArrayList<>();
+
+    public static ArchiveCalendarResponse of(
+            Long userId,
+            Integer year,
+            Integer month,
+            List<ArchiveDateGroupResponse> days
+    ) {
+        return ArchiveCalendarResponse.builder()
+                .userId(userId)
+                .year(year)
+                .month(month)
+                .days(days)
+                .build();
+    }
 }

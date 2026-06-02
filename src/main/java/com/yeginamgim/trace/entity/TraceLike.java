@@ -47,6 +47,13 @@ public class TraceLike {
         this.trace = trace;
     }
 
+    public static TraceLike create(UserEntity user, Trace trace) {
+        return TraceLike.builder()
+                .user(user)
+                .trace(trace)
+                .build();
+    }
+
     @PrePersist
     public void onCreate() {
         this.createdAt = LocalDateTime.now();

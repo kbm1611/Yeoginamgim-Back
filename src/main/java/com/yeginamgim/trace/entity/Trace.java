@@ -59,4 +59,14 @@ public class Trace extends BaseTime {
     public void hide() {
         this.traceStatus = TraceStatus.HIDE;
     }
+
+    public static Trace create(BoardEntity board, UserEntity user, Integer traceX, Integer traceY) {
+        return Trace.builder()
+                .board(board)
+                .user(user)
+                .traceX(traceX)
+                .traceY(traceY)
+                .traceStatus(TraceStatus.ACTIVE)
+                .build();
+    }
 }

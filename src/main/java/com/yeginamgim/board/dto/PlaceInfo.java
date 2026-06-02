@@ -19,4 +19,17 @@ public class PlaceInfo {
     private String address;
     private String kakaoMapUrl;
     private String groupName;
+
+    public static PlaceInfo from(BoardCreateRequest request) {
+        return PlaceInfo.builder()
+                .kakaoPlaceId(request.getKakaoPlaceId())
+                .placeName(request.getPlaceName())
+                .latitude(request.getLatitude())
+                .longitude(request.getLongitude())
+                .phone(request.getPhone())
+                .address(request.getAddress())
+                .kakaoMapUrl(request.getKakaoMapUrl())
+                .groupName(request.getGroupName())
+                .build();
+    }
 }

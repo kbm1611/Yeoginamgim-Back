@@ -36,13 +36,9 @@ public class ReportService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "이미 신고한 흔적입니다.");
         }
 
-        ReportEntity report = reportRepository.save(ReportEntity.builder()
-                .trace(trace)
-                .user(user)
-                .reportKind(request.getReportKind())
-                .build());
+        ReportEntity report = reportRepository.save(ReportEntity.create(user, trace, request.getReportKind()));
 
-        return toReportResponse(report);
+        return ReportResponse.from(report);
     }
 
     private void validateCreateRequest(ReportCreateRequest request) {
@@ -74,14 +70,4 @@ public class ReportService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "사용자를 찾을 수 없습니다."));
     }
 
-    private ReportResponse toReportResponse(ReportEntity report) {
-        return ReportResponse.builder()
-                .reportId(report.getReportId())
-                .traceId(report.getTrace().getTraceId())
-                .userId(report.getUser().getUserId())
-                .reportKind(report.getReportKind())
-                .createdAt(report.getCreatedAt())
-                .updatedAt(report.getUpdatedAt())
-                .build();
-    }
 }

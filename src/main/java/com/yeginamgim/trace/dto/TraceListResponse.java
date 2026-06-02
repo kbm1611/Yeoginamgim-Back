@@ -18,4 +18,11 @@ public class TraceListResponse {
 
     @Builder.Default
     private List<TraceResponse> traces = new ArrayList<>();
+
+    public static TraceListResponse of(Long boardId, List<TraceResponse> traces) {
+        return TraceListResponse.builder()
+                .boardId(boardId)
+                .traces(traces)
+                .build();
+    }
 }

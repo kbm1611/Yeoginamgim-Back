@@ -1,5 +1,7 @@
 package com.yeginamgim.archive.dto;
 
+import com.yeginamgim.board.dto.PlaceInfo;
+import com.yeginamgim.board.entity.BoardEntity;
 import com.yeginamgim.trace.dto.TraceResponse;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -23,4 +25,19 @@ public class ArchiveBoardGroupResponse {
 
     @Builder.Default
     private List<TraceResponse> traces = new ArrayList<>();
+
+    public static ArchiveBoardGroupResponse from(
+            BoardEntity board,
+            PlaceInfo place,
+            List<TraceResponse> traces
+    ) {
+        return ArchiveBoardGroupResponse.builder()
+                .boardId(board.getBoardId())
+                .kakaoPlaceId(board.getKakaoPlaceId())
+                .placeName(place.getPlaceName())
+                .groupName(place.getGroupName())
+                .traceCount(traces.size())
+                .traces(traces)
+                .build();
+    }
 }

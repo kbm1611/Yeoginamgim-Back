@@ -53,10 +53,7 @@ public class ArchiveService {
         List<Trace> traces = traceRepository
                 .findByUser_UserIdAndTraceStatusOrderByCreatedAtDescTraceIdDesc(userId, TraceStatus.ACTIVE);
 
-        return ArchiveTraceListResponse.builder()
-                .userId(userId)
-                .traces(toTraceResponses(traces))
-                .build();
+        return ArchiveTraceListResponse.of(userId, toTraceResponses(traces));
     }
 
     // 내가 남긴 흔적 개별 조회
@@ -99,19 +96,10 @@ public class ArchiveService {
                 ));
 
         List<ArchiveDateGroupResponse> days = tracesByDate.entrySet().stream()
-                .map(entry -> ArchiveDateGroupResponse.builder()
-                        .date(entry.getKey())
-                        .traceCount(entry.getValue().size())
-                        .traces(entry.getValue())
-                        .build())
+                .map(entry -> ArchiveDateGroupResponse.of(entry.getKey(), entry.getValue()))
                 .toList();
 
-        return ArchiveCalendarResponse.builder()
-                .userId(userId)
-                .year(year)
-                .month(month)
-                .days(days)
-                .build();
+        return ArchiveCalendarResponse.of(userId, year, month, days);
     }
 
     // 공간별 추억 아카이브 조회
@@ -145,21 +133,11 @@ public class ArchiveService {
                             .map(trace -> traceResponseMap.get(trace.getTraceId()))
                             .toList();
 
-                    return ArchiveBoardGroupResponse.builder()
-                            .boardId(board.getBoardId())
-                            .kakaoPlaceId(board.getKakaoPlaceId())
-                            .placeName(place.getPlaceName())
-                            .groupName(place.getGroupName())
-                            .traceCount(boardTraceResponses.size())
-                            .traces(boardTraceResponses)
-                            .build();
+                    return ArchiveBoardGroupResponse.from(board, place, boardTraceResponses);
                 })
                 .toList();
 
-        return ArchiveBoardListResponse.builder()
-                .userId(userId)
-                .boards(boards)
-                .build();
+        return ArchiveBoardListResponse.of(userId, boards);
     }
 
     // 내가 작성한 흔적 중 좋아요를 받은 흔적 조회
@@ -174,10 +152,7 @@ public class ArchiveService {
                 .filter(trace -> trace.getLikeCount() > 0)
                 .toList();
 
-        return ArchiveTraceListResponse.builder()
-                .userId(userId)
-                .traces(likedTraces)
-                .build();
+        return ArchiveTraceListResponse.of(userId, likedTraces);
     }
 
     private UserEntity findUserByToken(String authorization) {
@@ -221,34 +196,14 @@ public class ArchiveService {
     }
 
     private TraceResponse toTraceResponse(Trace trace, List<TraceElement> elements) {
-        return TraceResponse.builder()
-                .traceId(trace.getTraceId())
-                .boardId(trace.getBoard().getBoardId())
-                .userId(trace.getUser().getUserId())
-                .nickname(trace.getUser().getNickname())
-                .traceX(trace.getTraceX())
-                .traceY(trace.getTraceY())
-                .traceStatus(trace.getTraceStatus().name())
-                .createdAt(trace.getCreatedAt())
-                .updatedAt(trace.getUpdatedAt())
-                .likeCount(traceLikeRepository.countByTrace_TraceId(trace.getTraceId()))
-                .elements(elements.stream()
-                        .map(this::toTraceElementResponse)
-                        .toList())
-                .build();
-    }
+        List<TraceElementResponse> elementResponses = elements.stream()
+                .map(TraceElementResponse::from)
+                .toList();
 
-    private TraceElementResponse toTraceElementResponse(TraceElement element) {
-        return TraceElementResponse.builder()
-                .elementId(element.getElementId())
-                .contentType(element.getContentType().name())
-                .textContent(element.getTextContent())
-                .imageUrl(element.getImageUrl())
-                .elementX(element.getElementX())
-                .elementY(element.getElementY())
-                .styleJson(element.getStyleJson())
-                .createdAt(element.getCreatedAt())
-                .updatedAt(element.getUpdatedAt())
-                .build();
+        return TraceResponse.from(
+                trace,
+                elementResponses,
+                traceLikeRepository.countByTrace_TraceId(trace.getTraceId())
+        );
     }
 }

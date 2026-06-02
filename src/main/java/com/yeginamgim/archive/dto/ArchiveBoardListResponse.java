@@ -18,4 +18,11 @@ public class ArchiveBoardListResponse {
 
     @Builder.Default
     private List<ArchiveBoardGroupResponse> boards = new ArrayList<>();
+
+    public static ArchiveBoardListResponse of(Long userId, List<ArchiveBoardGroupResponse> boards) {
+        return ArchiveBoardListResponse.builder()
+                .userId(userId)
+                .boards(boards)
+                .build();
+    }
 }

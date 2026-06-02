@@ -21,4 +21,12 @@ public class ArchiveDateGroupResponse {
 
     @Builder.Default
     private List<TraceResponse> traces = new ArrayList<>();
+
+    public static ArchiveDateGroupResponse of(LocalDate date, List<TraceResponse> traces) {
+        return ArchiveDateGroupResponse.builder()
+                .date(date)
+                .traceCount(traces.size())
+                .traces(traces)
+                .build();
+    }
 }

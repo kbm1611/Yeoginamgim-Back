@@ -48,4 +48,12 @@ public class ReportEntity extends BaseTime {
     // 신고 사유 예시: 악성 글, 욕설, 부적절한 내용
     @Column(name = "report_kind", nullable = false, length = 100)
     private String reportKind;
+
+    public static ReportEntity create(UserEntity user, Trace trace, String reportKind) {
+        return ReportEntity.builder()
+                .user(user)
+                .trace(trace)
+                .reportKind(reportKind)
+                .build();
+    }
 }

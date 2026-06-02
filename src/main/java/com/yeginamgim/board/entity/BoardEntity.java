@@ -32,4 +32,11 @@ public class BoardEntity {
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
+
+    public static BoardEntity create(String kakaoPlaceId) {
+        return BoardEntity.builder()
+                .kakaoPlaceId(kakaoPlaceId)
+                .createdAt(LocalDateTime.now())
+                .build();
+    }
 }
