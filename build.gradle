@@ -19,6 +19,7 @@ repositories {
 
 dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-webmvc'         // SpringBoot Web
+    implementation 'org.springframework.boot:spring-boot-starter-validation'     // Bean Validation
     runtimeOnly 'com.mysql:mysql-connector-j'                                    // mySQL
     compileOnly 'org.projectlombok:lombok'                                       // Lombok
     annotationProcessor 'org.projectlombok:lombok'                               // Lombok
