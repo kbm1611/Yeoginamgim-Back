@@ -1,12 +1,13 @@
 package com.yeginamgim.place.util;
 
+import org.springframework.stereotype.Service;
+
+@Service
 public final class GeoUtils {
 
     private static final double EARTH_RADIUS_IN_METERS = 6371000;
 
-    private GeoUtils() {
-    }
-
+    // 거리 계산 함수
     public static double distanceInMeters(Double latitude1, Double longitude1, Double latitude2, Double longitude2) {
         if (latitude1 == null || longitude1 == null || latitude2 == null || longitude2 == null) {
             return Double.MAX_VALUE;
