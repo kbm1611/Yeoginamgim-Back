@@ -3,6 +3,7 @@ package com.yeginamgim.auth.service;
 import com.yeginamgim.auth.dto.request.LoginRequestDto;
 import com.yeginamgim.auth.dto.response.LoginResponseDto;
 import com.yeginamgim.auth.jwt.JWTService;
+import com.yeginamgim.global.exception.LoginFailedException;
 import com.yeginamgim.global.exception.OAuthLoginException;
 import com.yeginamgim.user.entity.UserEntity;
 import com.yeginamgim.user.enums.LoginProvider;
@@ -51,23 +52,18 @@ public class AuthService {
     public LoginResponseDto login(LoginRequestDto loginReqDto){
         UserEntity userEntity = userRepo.findByEmail(loginReqDto.getEmail()).orElse(null);
 
-        if(userEntity == null) return null;
+        if(userEntity == null) throw new LoginFailedException();
 
         boolean isPasswordMatch = passwordEncoder.matches(
                 loginReqDto.getPassword(),
                 userEntity.getPassword()
         );
 
-        if(!isPasswordMatch) return null;
+        if(!isPasswordMatch) throw new LoginFailedException();
 
         String token = jwtSvc.createToken(userEntity.getEmail());
 
-        return LoginResponseDto.builder()
-                .token(token)
-                .email(userEntity.getEmail())
-                .nickname(userEntity.getNickname())
-                .profileImageUrl(userEntity.getProfileImageUrl())
-                .build();
+        return LoginResponseDto.from(userEntity, token);
     }
 
     // 카카오 로그인 url
@@ -261,12 +257,7 @@ public class AuthService {
 
         String token = jwtSvc.createToken(userEntity.getEmail());
 
-        return LoginResponseDto.builder()
-                .token(token)
-                .email(userEntity.getEmail())
-                .nickname(userEntity.getNickname())
-                .profileImageUrl(userEntity.getProfileImageUrl())
-                .build();
+        return LoginResponseDto.from(userEntity, token);
     }
 
     private Map<String, Object> getRequiredMap(Map<String, Object> body, String key) {
