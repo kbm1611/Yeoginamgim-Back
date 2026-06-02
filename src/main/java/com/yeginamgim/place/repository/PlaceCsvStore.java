@@ -1,4 +1,4 @@
-package com.yeginamgim.place.service;
+package com.yeginamgim.place.repository;
 
 import com.yeginamgim.board.dto.PlaceInfo;
 import org.springframework.beans.factory.annotation.Value;
