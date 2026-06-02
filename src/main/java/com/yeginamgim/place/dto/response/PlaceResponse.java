@@ -22,6 +22,7 @@ public class PlaceResponse {
     private Long traceCount;
     private Long boardId;
 
+    // 내부 장소 정보와 집계 데이터를 API 응답 DTO로 변환한다.
     public static PlaceResponse from(PlaceInfo placeInfo, Long traceCount, Long boardId) {
         return PlaceResponse.builder()
                 .kakaoPlaceId(placeInfo.getKakaoPlaceId())

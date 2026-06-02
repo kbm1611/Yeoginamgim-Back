@@ -20,13 +20,13 @@ public class PlaceController {
 
     private final PlaceService placeService;
 
-    // 근처 장소 조회
+    // 현재 위치와 카테고리를 기준으로 주변 장소 목록을 조회한다.
     @GetMapping("/nearby")
     public List<PlaceResponse> getNearbyPlaces(@ModelAttribute PlaceSearchRequest request) {
         return placeService.searchNearbyPlaces(request);
     }
 
-    // 인기 장소 조회
+    // active 흔적 수가 많은 장소를 인기 장소 순위로 조회한다.
     @GetMapping("/popular")
     public List<PopularPlaceResponse> getPopularPlaces(
             @RequestParam(defaultValue = "10") Integer limit
