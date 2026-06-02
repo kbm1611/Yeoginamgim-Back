@@ -1,6 +1,7 @@
 package com.yeginamgim.place.repository;
 
 import com.yeginamgim.board.dto.PlaceInfo;
+import com.yeginamgim.place.util.GeoUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -211,12 +212,12 @@ public class PlaceCsvStore {
     private boolean isWithinRadius(Double latitude, Double longitude, PlaceInfo place, int radius) {
         return place.getLatitude() != null
                 && place.getLongitude() != null
-                && distanceInMeters(latitude, longitude, place.getLatitude(), place.getLongitude()) <= radius;
+                && GeoUtils.distanceInMeters(latitude, longitude, place.getLatitude(), place.getLongitude()) <= radius;
     }
 
     // 기준 좌표와 장소 사이의 거리를 계산한다.
     private double distanceFrom(Double latitude, Double longitude, PlaceInfo place) {
-        return distanceInMeters(latitude, longitude, place.getLatitude(), place.getLongitude());
+        return GeoUtils.distanceInMeters(latitude, longitude, place.getLatitude(), place.getLongitude());
     }
 
     // 저장 가능한 최소 식별 정보가 있는지 확인한다.
@@ -302,16 +303,4 @@ public class PlaceCsvStore {
         }
     }
 
-    // 두 위경도 좌표 사이의 거리를 미터 단위로 계산한다.
-    private double distanceInMeters(double latitude1, double longitude1, double latitude2, double longitude2) {
-        double earthRadius = 6371000;
-        double latDistance = Math.toRadians(latitude2 - latitude1);
-        double lonDistance = Math.toRadians(longitude2 - longitude1);
-        double a = Math.sin(latDistance / 2) * Math.sin(latDistance / 2)
-                + Math.cos(Math.toRadians(latitude1)) * Math.cos(Math.toRadians(latitude2))
-                * Math.sin(lonDistance / 2) * Math.sin(lonDistance / 2);
-        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-        return earthRadius * c;
-    }
 }
