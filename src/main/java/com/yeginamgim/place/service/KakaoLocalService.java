@@ -4,6 +4,7 @@ import com.yeginamgim.board.dto.PlaceInfo;
 import com.yeginamgim.global.exception.KakaoLocalApiException;
 import com.yeginamgim.place.dto.request.PlaceSearchRequest;
 import lombok.Data;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -34,6 +35,7 @@ public class KakaoLocalService {
     private final String restApiKey;
 
     // 운영 환경에서 Kakao Local API 호출용 RestClient를 생성한다.
+    @Autowired
     public KakaoLocalService(@Value("${kakao.rest-api-key:}") String restApiKey) {
         this(restApiKey, RestClient.builder()
                 .baseUrl(KAKAO_LOCAL_BASE_URL)
