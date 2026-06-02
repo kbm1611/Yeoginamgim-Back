@@ -4,6 +4,7 @@ import com.yeginamgim.place.dto.request.PlaceSearchRequest;
 import com.yeginamgim.place.dto.response.PlaceResponse;
 import com.yeginamgim.place.dto.response.PopularPlaceResponse;
 import com.yeginamgim.place.service.PlaceService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
@@ -22,7 +23,7 @@ public class PlaceController {
 
     // 현재 위치와 카테고리를 기준으로 주변 장소 목록을 조회한다.
     @GetMapping("/nearby")
-    public List<PlaceResponse> getNearbyPlaces(@ModelAttribute PlaceSearchRequest request) {
+    public List<PlaceResponse> getNearbyPlaces(@Valid @ModelAttribute PlaceSearchRequest request) {
         return placeService.searchNearbyPlaces(request);
     }
 

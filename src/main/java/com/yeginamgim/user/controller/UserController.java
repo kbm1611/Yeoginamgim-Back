@@ -4,6 +4,7 @@ import com.yeginamgim.auth.jwt.JWTService;
 import com.yeginamgim.user.dto.request.UserSignupRequestDto;
 import com.yeginamgim.user.dto.request.UserUpdateRequestDto;
 import com.yeginamgim.user.service.UserService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -22,7 +23,7 @@ public class UserController {
     private final JWTService jwtSvc;
 
     @PostMapping("/signup")
-    public ResponseEntity<?> signup(@ModelAttribute UserSignupRequestDto userReqDto) {
+    public ResponseEntity<?> signup(@Valid @ModelAttribute UserSignupRequestDto userReqDto) {
         return ResponseEntity.ok(userSvc.signup(userReqDto));
     }
 
@@ -35,7 +36,7 @@ public class UserController {
     @PatchMapping("/update")
     public ResponseEntity<?> updateUserInfo(
             @RequestHeader(value = "Authorization", required = false) String token,
-            @ModelAttribute UserUpdateRequestDto userUpdDto
+            @Valid @ModelAttribute UserUpdateRequestDto userUpdDto
     ) {
         String email = jwtSvc.extractEmailFromBearerToken(token);
         return ResponseEntity.ok(userSvc.updateUserInfo(email, userUpdDto));
