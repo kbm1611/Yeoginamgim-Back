@@ -2,6 +2,8 @@ package com.yeginamgim.global.exception;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.BindException;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
@@ -56,6 +58,16 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
     }
 
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<String> handleMethodArgumentNotValid(MethodArgumentNotValidException e) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(firstValidationMessage(e));
+    }
+
+    @ExceptionHandler(BindException.class)
+    public ResponseEntity<String> handleBind(BindException e) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(firstValidationMessage(e));
+    }
+
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public ResponseEntity<String> handleMaxUploadSizeExceeded(MaxUploadSizeExceededException e) {
         return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).body(FILE_SIZE_EXCEEDED_MESSAGE);
@@ -64,5 +76,15 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MultipartException.class)
     public ResponseEntity<String> handleMultipart(MultipartException e) {
         return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).body(FILE_SIZE_EXCEEDED_MESSAGE);
+    }
+
+    private String firstValidationMessage(BindException e) {
+        if (e.getBindingResult().hasFieldErrors()) {
+            return e.getBindingResult().getFieldErrors().get(0).getDefaultMessage();
+        }
+        if (e.getBindingResult().hasGlobalErrors()) {
+            return e.getBindingResult().getGlobalErrors().get(0).getDefaultMessage();
+        }
+        return "Invalid request.";
     }
 }
