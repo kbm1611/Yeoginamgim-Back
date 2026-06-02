@@ -6,7 +6,12 @@ import com.yeginamgim.auth.service.AuthService;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.io.IOException;
 
@@ -16,39 +21,38 @@ import java.io.IOException;
 public class AuthController {
     private final AuthService authSvc;
 
-    // 일반 로그인
+    // 일반 로그인 요청을 처리하고 JWT가 포함된 로그인 응답을 반환한다.
     @PostMapping("login")
-    public ResponseEntity<?> login(@RequestBody LoginRequestDto loginReqDto){
+    public ResponseEntity<?> login(@RequestBody LoginRequestDto loginReqDto) {
         LoginResponseDto result = authSvc.login(loginReqDto);
-
-        if( result == null ){
-            return ResponseEntity.status(401).body("이메일 또는 비밀번호가 일치하지 않습니다.");
-        }
-
         return ResponseEntity.ok(result);
     }
 
-    // 카카오 OAuth 로그인
+    // 카카오 OAuth 인증 페이지로 리다이렉트한다.
     @GetMapping("/oauth/kakao")
     public void kakaoLogin(HttpServletResponse response) throws IOException {
         response.sendRedirect(authSvc.getKaKaoLoginUrl());
     }
+
+    // 카카오 OAuth callback code로 로그인하거나 가입 처리한 뒤 JWT를 반환한다.
     @GetMapping("/oauth/kakao/callback")
-    public ResponseEntity<?> kakaoCallback(@RequestParam String code){
+    public ResponseEntity<?> kakaoCallback(@RequestParam String code) {
         return ResponseEntity.ok(authSvc.kakaoLogin(code));
     }
 
-    // 구글 Oauth 로그인
+    // 구글 OAuth 인증 페이지로 리다이렉트한다.
     @GetMapping("/oauth/google")
-    public void googleLogin(HttpServletResponse response) throws IOException{
+    public void googleLogin(HttpServletResponse response) throws IOException {
         response.sendRedirect(authSvc.getGoogleLoginUrl());
     }
+
+    // 구글 OAuth callback code로 로그인하거나 가입 처리한 뒤 JWT를 반환한다.
     @GetMapping("/oauth/google/callback")
-    public ResponseEntity<?> googleCallback(@RequestParam String code){
+    public ResponseEntity<?> googleCallback(@RequestParam String code) {
         return ResponseEntity.ok(authSvc.googleLogin(code));
     }
 
-    // 로그아웃
+    // 클라이언트가 보유한 JWT를 폐기하도록 성공 응답만 반환한다.
     @GetMapping("/logout")
     public ResponseEntity<?> logout() {
         return ResponseEntity.ok(true);
