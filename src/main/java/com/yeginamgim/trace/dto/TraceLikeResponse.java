@@ -14,4 +14,12 @@ public class TraceLikeResponse {
     private Long traceId;
     private Boolean liked;
     private Long likeCount;
+
+    public static TraceLikeResponse of(Long traceId, boolean liked, Long likeCount) {
+        return TraceLikeResponse.builder()
+                .traceId(traceId)
+                .liked(liked)
+                .likeCount(likeCount)
+                .build();
+    }
 }

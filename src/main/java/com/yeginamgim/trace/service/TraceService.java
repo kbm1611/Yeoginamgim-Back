@@ -159,10 +159,7 @@ public class TraceService {
                 ))
                 .toList();
 
-        return TraceListResponse.builder()
-                .boardId(board.getBoardId())
-                .traces(responses)
-                .build();
+        return TraceListResponse.of(board.getBoardId(), responses);
     }
 
     // board_id 기준 흔적 생성
@@ -173,13 +170,7 @@ public class TraceService {
         BoardEntity board = findBoard(boardId);
         UserEntity user = findUserByToken(authorization);
 
-        Trace trace = traceRepository.save(Trace.builder()
-                .board(board)
-                .user(user)
-                .traceX(request.getTraceX())
-                .traceY(request.getTraceY())
-                .traceStatus(TraceStatus.ACTIVE)
-                .build());
+        Trace trace = traceRepository.save(Trace.create(board, user, request.getTraceX(), request.getTraceY()));
 
         List<TraceElement> elements = new ArrayList<>();
         if (request.getElements() != null) {
@@ -211,9 +202,7 @@ public class TraceService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "업로드할 이미지 파일은 필수입니다.");
         }
 
-        return TraceImageUploadResponse.builder()
-                .imageUrl("/upload/board/" + fileName)
-                .build();
+        return TraceImageUploadResponse.of("/upload/board/" + fileName);
     }
 
     // trace_id 기준 흔적 수정
@@ -261,10 +250,7 @@ public class TraceService {
         Long userId = user.getUserId();
 
         if (!traceLikeRepository.existsByUser_UserIdAndTrace_TraceId(userId, traceId)) {
-            traceLikeRepository.save(TraceLike.builder()
-                    .trace(trace)
-                    .user(user)
-                    .build());
+            traceLikeRepository.save(TraceLike.create(user, trace));
         }
 
         return toLikeResponse(traceId, true);
@@ -366,15 +352,15 @@ public class TraceService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "흔적 요소의 contentType은 필수입니다.");
         }
 
-        return TraceElement.builder()
-                .trace(trace)
-                .contentType(request.getContentType())
-                .textContent(request.getTextContent())
-                .imageUrl(request.getImageUrl())
-                .elementX(request.getElementX())
-                .elementY(request.getElementY())
-                .styleJson(request.getStyleJson())
-                .build();
+        return TraceElement.create(
+                trace,
+                request.getContentType(),
+                request.getTextContent(),
+                request.getImageUrl(),
+                request.getElementX(),
+                request.getElementY(),
+                request.getStyleJson()
+        );
     }
 
     private void updateTraceElements(Trace trace, List<TraceElementUpdateRequest> elementRequests) {
@@ -416,15 +402,15 @@ public class TraceService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "새 흔적 요소의 contentType은 필수입니다.");
         }
 
-        return TraceElement.builder()
-                .trace(trace)
-                .contentType(request.getContentType())
-                .textContent(request.getTextContent())
-                .imageUrl(request.getImageUrl())
-                .elementX(request.getElementX())
-                .elementY(request.getElementY())
-                .styleJson(request.getStyleJson())
-                .build();
+        return TraceElement.create(
+                trace,
+                request.getContentType(),
+                request.getTextContent(),
+                request.getImageUrl(),
+                request.getElementX(),
+                request.getElementY(),
+                request.getStyleJson()
+        );
     }
 
     private void updateTraceElement(TraceElement element, TraceElementUpdateRequest request) {
@@ -454,42 +440,18 @@ public class TraceService {
     }
 
     private TraceResponse toTraceResponse(Trace trace, List<TraceElement> elements) {
-        return TraceResponse.builder()
-                .traceId(trace.getTraceId())
-                .boardId(trace.getBoard().getBoardId())
-                .userId(trace.getUser().getUserId())
-                .nickname(trace.getUser().getNickname())
-                .traceX(trace.getTraceX())
-                .traceY(trace.getTraceY())
-                .traceStatus(trace.getTraceStatus().name())
-                .createdAt(trace.getCreatedAt())
-                .updatedAt(trace.getUpdatedAt())
-                .likeCount(traceLikeRepository.countByTrace_TraceId(trace.getTraceId()))
-                .elements(elements.stream()
-                        .map(this::toTraceElementResponse)
-                        .toList())
-                .build();
-    }
+        List<TraceElementResponse> elementResponses = elements.stream()
+                .map(TraceElementResponse::from)
+                .toList();
 
-    private TraceElementResponse toTraceElementResponse(TraceElement element) {
-        return TraceElementResponse.builder()
-                .elementId(element.getElementId())
-                .contentType(element.getContentType().name())
-                .textContent(element.getTextContent())
-                .imageUrl(element.getImageUrl())
-                .elementX(element.getElementX())
-                .elementY(element.getElementY())
-                .styleJson(element.getStyleJson())
-                .createdAt(element.getCreatedAt())
-                .updatedAt(element.getUpdatedAt())
-                .build();
+        return TraceResponse.from(
+                trace,
+                elementResponses,
+                traceLikeRepository.countByTrace_TraceId(trace.getTraceId())
+        );
     }
 
     private TraceLikeResponse toLikeResponse(Long traceId, boolean liked) {
-        return TraceLikeResponse.builder()
-                .traceId(traceId)
-                .liked(liked)
-                .likeCount(traceLikeRepository.countByTrace_TraceId(traceId))
-                .build();
+        return TraceLikeResponse.of(traceId, liked, traceLikeRepository.countByTrace_TraceId(traceId));
     }
 }

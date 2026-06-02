@@ -13,8 +13,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.time.LocalDateTime;
-
 @Service
 @RequiredArgsConstructor
 public class BoardService {
@@ -53,10 +51,7 @@ public class BoardService {
         findPlaceByKakaoPlaceId(kakaoPlaceId);
 
         BoardEntity board = boardRepository.findByKakaoPlaceId(kakaoPlaceId)
-                .orElseGet(() -> boardRepository.save(BoardEntity.builder()
-                        .kakaoPlaceId(kakaoPlaceId)
-                        .createdAt(LocalDateTime.now())
-                        .build()));
+                .orElseGet(() -> boardRepository.save(BoardEntity.create(kakaoPlaceId)));
 
         return toBoardDetailResponse(board);
     }
@@ -64,12 +59,7 @@ public class BoardService {
     private BoardDetailResponse toBoardDetailResponse(BoardEntity board) {
         PlaceInfo place = findPlaceByKakaoPlaceId(board.getKakaoPlaceId());
 
-        return BoardDetailResponse.builder()
-                .boardId(board.getBoardId())
-                .kakaoPlaceId(board.getKakaoPlaceId())
-                .createdAt(board.getCreatedAt())
-                .place(place)
-                .build();
+        return BoardDetailResponse.from(board, place);
     }
 
     private PlaceInfo findPlaceByKakaoPlaceId(String kakaoPlaceId) {
@@ -91,16 +81,7 @@ public class BoardService {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Place snapshot is required for uncached place.");
         }
 
-        placeCsvStore.saveIfAbsent(PlaceInfo.builder()
-                .kakaoPlaceId(request.getKakaoPlaceId())
-                .placeName(request.getPlaceName())
-                .latitude(request.getLatitude())
-                .longitude(request.getLongitude())
-                .phone(request.getPhone())
-                .address(request.getAddress())
-                .kakaoMapUrl(request.getKakaoMapUrl())
-                .groupName(request.getGroupName())
-                .build());
+        placeCsvStore.saveIfAbsent(PlaceInfo.from(request));
     }
 
     // 요청에 CSV로 저장할 수 있을 만큼의 장보 정보가 있는지 확인. 장소명, 위도, 경도, 카테고리 중 하나라도 없으면 false

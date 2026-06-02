@@ -12,4 +12,10 @@ import lombok.NoArgsConstructor;
 @Builder
 public class TraceImageUploadResponse {
     private String imageUrl;
+
+    public static TraceImageUploadResponse of(String imageUrl) {
+        return TraceImageUploadResponse.builder()
+                .imageUrl(imageUrl)
+                .build();
+    }
 }

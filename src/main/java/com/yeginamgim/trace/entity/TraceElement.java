@@ -73,4 +73,24 @@ public class TraceElement extends BaseTime {
         this.elementY = elementY;
         this.styleJson = styleJson;
     }
+
+    public static TraceElement create(
+            Trace trace,
+            ContentType contentType,
+            String textContent,
+            String imageUrl,
+            Integer elementX,
+            Integer elementY,
+            String styleJson
+    ) {
+        return TraceElement.builder()
+                .trace(trace)
+                .contentType(contentType)
+                .textContent(textContent)
+                .imageUrl(imageUrl)
+                .elementX(elementX)
+                .elementY(elementY)
+                .styleJson(styleJson)
+                .build();
+    }
 }

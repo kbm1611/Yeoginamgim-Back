@@ -1,5 +1,6 @@
 package com.yeginamgim.trace.dto;
 
+import com.yeginamgim.trace.entity.Trace;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -28,4 +29,20 @@ public class TraceResponse {
 
     @Builder.Default
     private List<TraceElementResponse> elements = new ArrayList<>();
+
+    public static TraceResponse from(Trace trace, List<TraceElementResponse> elements, Long likeCount) {
+        return TraceResponse.builder()
+                .traceId(trace.getTraceId())
+                .boardId(trace.getBoard().getBoardId())
+                .userId(trace.getUser().getUserId())
+                .nickname(trace.getUser().getNickname())
+                .traceX(trace.getTraceX())
+                .traceY(trace.getTraceY())
+                .traceStatus(trace.getTraceStatus().name())
+                .createdAt(trace.getCreatedAt())
+                .updatedAt(trace.getUpdatedAt())
+                .likeCount(likeCount)
+                .elements(elements)
+                .build();
+    }
 }

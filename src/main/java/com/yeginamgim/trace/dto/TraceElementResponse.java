@@ -1,5 +1,6 @@
 package com.yeginamgim.trace.dto;
 
+import com.yeginamgim.trace.entity.TraceElement;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -22,4 +23,18 @@ public class TraceElementResponse {
     private String styleJson;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+
+    public static TraceElementResponse from(TraceElement element) {
+        return TraceElementResponse.builder()
+                .elementId(element.getElementId())
+                .contentType(element.getContentType().name())
+                .textContent(element.getTextContent())
+                .imageUrl(element.getImageUrl())
+                .elementX(element.getElementX())
+                .elementY(element.getElementY())
+                .styleJson(element.getStyleJson())
+                .createdAt(element.getCreatedAt())
+                .updatedAt(element.getUpdatedAt())
+                .build();
+    }
 }

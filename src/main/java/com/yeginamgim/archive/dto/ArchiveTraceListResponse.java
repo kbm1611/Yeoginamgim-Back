@@ -19,4 +19,11 @@ public class ArchiveTraceListResponse {
 
     @Builder.Default
     private List<TraceResponse> traces = new ArrayList<>();
+
+    public static ArchiveTraceListResponse of(Long userId, List<TraceResponse> traces) {
+        return ArchiveTraceListResponse.builder()
+                .userId(userId)
+                .traces(traces)
+                .build();
+    }
 }
