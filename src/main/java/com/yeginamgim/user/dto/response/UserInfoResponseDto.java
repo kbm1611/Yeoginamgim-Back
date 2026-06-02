@@ -16,12 +16,4 @@ public class UserInfoResponseDto {
     private String email;
     private String nickname;
     private String profileImageUrl;
-
-    public UserEntity toEntity(){
-        return UserEntity.builder()
-                .email( email )
-                .nickname( nickname )
-                .profileImageUrl( profileImageUrl )
-                .build();
-    }
 }
