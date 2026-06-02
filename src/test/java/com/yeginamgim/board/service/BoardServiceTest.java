@@ -3,7 +3,7 @@ package com.yeginamgim.board.service;
 import com.yeginamgim.board.dto.BoardCreateRequest;
 import com.yeginamgim.board.entity.BoardEntity;
 import com.yeginamgim.board.repository.BoardRepository;
-import com.yeginamgim.place.service.PlaceCsvStore;
+import com.yeginamgim.place.repository.PlaceCsvStore;
 import com.yeginamgim.place.service.PlaceService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;

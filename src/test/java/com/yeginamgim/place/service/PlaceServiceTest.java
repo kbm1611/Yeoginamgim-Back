@@ -7,6 +7,8 @@ import com.yeginamgim.global.exception.InvalidPlaceRequestException;
 import com.yeginamgim.place.dto.request.PlaceSearchRequest;
 import com.yeginamgim.place.dto.response.PlaceResponse;
 import com.yeginamgim.place.dto.response.PopularPlaceResponse;
+import com.yeginamgim.place.repository.PlaceCsvStore;
+import com.yeginamgim.place.util.PlaceSearchRequestValidator;
 import com.yeginamgim.trace.repository.TraceRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -232,7 +234,13 @@ class PlaceServiceTest {
         Path cacheFile = tempDir.resolve("places-cache.csv");
         Files.writeString(cacheFile, csv);
         PlaceCsvStore placeCsvStore = new PlaceCsvStore(cacheFile.toString());
-        return new PlaceService(kakaoLocalService, boardRepository, traceRepository, placeCsvStore);
+        return new PlaceService(
+                kakaoLocalService,
+                boardRepository,
+                traceRepository,
+                placeCsvStore,
+                new PlaceSearchRequestValidator()
+        );
     }
 
     private TraceRepository.PlaceTraceCount placeTraceCount(String kakaoPlaceId, Long traceCount) {

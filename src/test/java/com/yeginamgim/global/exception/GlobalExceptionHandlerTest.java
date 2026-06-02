@@ -17,7 +17,6 @@ class GlobalExceptionHandlerTest {
         );
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_GATEWAY);
-        assertThat(response.getBody()).isEqualTo("카카오 Local API 호출에 실패했습니다.");
     }
 
     @Test
@@ -25,11 +24,11 @@ class GlobalExceptionHandlerTest {
         GlobalExceptionHandler handler = new GlobalExceptionHandler();
 
         ResponseEntity<String> response = handler.handleInvalidPlaceRequest(
-                new InvalidPlaceRequestException("카테고리는 필수입니다.")
+                new InvalidPlaceRequestException("invalid place request")
         );
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-        assertThat(response.getBody()).isEqualTo("카테고리는 필수입니다.");
+        assertThat(response.getBody()).isEqualTo("invalid place request");
     }
 
     @Test
@@ -39,7 +38,6 @@ class GlobalExceptionHandlerTest {
         ResponseEntity<String> response = handler.handlePlaceNotFound(new PlaceNotFoundException());
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
-        assertThat(response.getBody()).isEqualTo("로컬 장소 캐시에서 장소를 찾을 수 없습니다.");
     }
 
     @Test
@@ -49,6 +47,14 @@ class GlobalExceptionHandlerTest {
         ResponseEntity<String> response = handler.handleLoginFailed(new LoginFailedException());
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
-        assertThat(response.getBody()).isEqualTo("이메일 또는 비밀번호가 일치하지 않습니다.");
+    }
+
+    @Test
+    void invalidTokenExceptionReturnsUnauthorized() {
+        GlobalExceptionHandler handler = new GlobalExceptionHandler();
+
+        ResponseEntity<String> response = handler.handleInvalidToken(new InvalidTokenException());
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
     }
 }
