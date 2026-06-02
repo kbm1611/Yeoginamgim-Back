@@ -26,6 +26,26 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(e.getMessage());
     }
 
+    @ExceptionHandler(LoginFailedException.class)
+    public ResponseEntity<String> handleLoginFailed(LoginFailedException e) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(e.getMessage());
+    }
+
+    @ExceptionHandler(KakaoLocalApiException.class)
+    public ResponseEntity<String> handleKakaoLocalApi(KakaoLocalApiException e) {
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(e.getMessage());
+    }
+
+    @ExceptionHandler(InvalidPlaceRequestException.class)
+    public ResponseEntity<String> handleInvalidPlaceRequest(InvalidPlaceRequestException e) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+    }
+
+    @ExceptionHandler(PlaceNotFoundException.class)
+    public ResponseEntity<String> handlePlaceNotFound(PlaceNotFoundException e) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+    }
+
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public ResponseEntity<String> handleMaxUploadSizeExceeded(MaxUploadSizeExceededException e) {
         return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).body(FILE_SIZE_EXCEEDED_MESSAGE);
