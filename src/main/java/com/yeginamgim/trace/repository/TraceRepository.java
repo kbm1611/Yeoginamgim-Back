@@ -9,6 +9,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -161,6 +162,16 @@ public interface TraceRepository extends JpaRepository<Trace, Long> {
               and trace.traceStatus = com.yeginamgim.trace.enums.TraceStatus.ACTIVE
             """)
     long countActiveByKakaoPlaceId(@Param("kakaoPlaceId") String kakaoPlaceId);
+
+    @Query("""
+            select trace.board.kakaoPlaceId as kakaoPlaceId,
+                   count(trace) as traceCount
+            from Trace trace
+            where trace.traceStatus = com.yeginamgim.trace.enums.TraceStatus.ACTIVE
+              and trace.board.kakaoPlaceId in :kakaoPlaceIds
+            group by trace.board.kakaoPlaceId
+            """)
+    List<PlaceTraceCount> countActiveByKakaoPlaceIds(@Param("kakaoPlaceIds") Collection<String> kakaoPlaceIds);
 
     @Query("""
             select trace.board.kakaoPlaceId as kakaoPlaceId,
