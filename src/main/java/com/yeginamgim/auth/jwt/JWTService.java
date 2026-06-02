@@ -58,4 +58,11 @@ public class JWTService {
             throw new InvalidTokenException();
         }
     }
+
+    public String extractEmailFromBearerToken(String bearerToken) {
+        if (!StringUtils.hasText(bearerToken) || !bearerToken.startsWith("Bearer ")) {
+            throw new InvalidTokenException();
+        }
+        return getClaim(bearerToken);
+    }
 }

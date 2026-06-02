@@ -33,4 +33,19 @@ class JWTServiceTest {
         assertThatThrownBy(() -> jwtService.getClaim("invalid-token"))
                 .isInstanceOf(InvalidTokenException.class);
     }
+
+    @Test
+    void extractEmailFromBearerTokenRequiresBearerToken() {
+        assertThatThrownBy(() -> jwtService.extractEmailFromBearerToken("invalid-token"))
+                .isInstanceOf(InvalidTokenException.class);
+    }
+
+    @Test
+    void extractEmailFromBearerTokenReturnsEmailFromBearerToken() {
+        String token = jwtService.createToken("user@example.com");
+
+        String email = jwtService.extractEmailFromBearerToken("Bearer " + token);
+
+        assertThat(email).isEqualTo("user@example.com");
+    }
 }
