@@ -47,7 +47,7 @@ public class PlaceCsvStore {
 
         return findAll().stream()
                 .filter(place -> kakaoPlaceId.equals(place.getKakaoPlaceId()))
-                .findFirst();
+                .findFirst(); // 첫번째로 찾은 값만 반환
     }
 
     // 지정 좌표 주변에서 카테고리와 반경 조건에 맞는 장소를 거리순으로 찾는다.

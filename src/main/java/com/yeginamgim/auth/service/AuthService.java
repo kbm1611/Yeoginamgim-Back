@@ -4,6 +4,7 @@ import com.yeginamgim.auth.dto.request.LoginRequestDto;
 import com.yeginamgim.auth.dto.response.LoginResponseDto;
 import com.yeginamgim.auth.jwt.JWTService;
 import com.yeginamgim.auth.dto.OAuthUserInfoDto;
+import com.yeginamgim.global.exception.DuplicateMemberException;
 import com.yeginamgim.global.exception.LoginFailedException;
 import com.yeginamgim.global.exception.OAuthLoginException;
 import com.yeginamgim.user.entity.UserEntity;
@@ -81,19 +82,19 @@ public class AuthService {
                 .orElse(null);
 
         if (userEntity == null) {
-            userEntity = userRepo.findByEmail(email).orElse(null);
-
-            if (userEntity == null) {
-                userEntity = UserEntity.builder()
-                        .email(email)
-                        .nickname(nickname)
-                        .profileImageUrl(profileImageUrl)
-                        .provider(provider)
-                        .providerId(providerId)
-                        .build();
-
-                userEntity = userRepo.save(userEntity);
+            if (userRepo.findByEmail(email).isPresent()) {
+                throw new DuplicateMemberException();
             }
+
+            userEntity = UserEntity.builder()
+                    .email(email)
+                    .nickname(nickname)
+                    .profileImageUrl(profileImageUrl)
+                    .provider(provider)
+                    .providerId(providerId)
+                    .build();
+
+            userEntity = userRepo.save(userEntity);
         }
 
         String token = jwtSvc.createToken(userEntity.getEmail());

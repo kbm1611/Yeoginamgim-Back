@@ -3,6 +3,7 @@ package com.yeginamgim.auth.service;
 import com.yeginamgim.auth.dto.response.LoginResponseDto;
 import com.yeginamgim.auth.jwt.JWTService;
 import com.yeginamgim.auth.dto.OAuthUserInfoDto;
+import com.yeginamgim.global.exception.DuplicateMemberException;
 import com.yeginamgim.user.entity.UserEntity;
 import com.yeginamgim.user.enums.LoginProvider;
 import com.yeginamgim.user.repository.UserRepository;
@@ -11,7 +12,10 @@ import org.junit.jupiter.api.Test;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -88,5 +92,31 @@ class AuthServiceTest {
         assertThat(response.getToken()).isEqualTo("jwt-token");
         assertThat(response.getEmail()).isEqualTo("google@example.com");
         verify(googleOAuthClientService).fetchUserInfo("callback-code");
+    }
+
+    @Test
+    void socialLoginRejectsDuplicateEmailWithoutAutoLinking() {
+        OAuthUserInfoDto kakaoUser = new OAuthUserInfoDto(
+                LoginProvider.KAKAO,
+                "kakao-provider-id",
+                "user@example.com",
+                "kakao-user",
+                "/kakao.png"
+        );
+        UserEntity existingUser = UserEntity.builder()
+                .email("user@example.com")
+                .nickname("local-user")
+                .provider(LoginProvider.LOCAL)
+                .build();
+
+        when(kakaoOAuthClientService.fetchUserInfo("callback-code")).thenReturn(kakaoUser);
+        when(userRepository.findByProviderAndProviderId(LoginProvider.KAKAO, "kakao-provider-id"))
+                .thenReturn(Optional.empty());
+        when(userRepository.findByEmail("user@example.com")).thenReturn(Optional.of(existingUser));
+
+        assertThatThrownBy(() -> authService.kakaoLogin("callback-code"))
+                .isInstanceOf(DuplicateMemberException.class);
+
+        verify(userRepository, never()).save(any(UserEntity.class));
     }
 }
