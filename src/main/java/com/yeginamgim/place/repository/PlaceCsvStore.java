@@ -2,6 +2,7 @@ package com.yeginamgim.place.repository;
 
 import com.yeginamgim.board.dto.PlaceInfo;
 import com.yeginamgim.place.util.GeoUtils;
+import com.yeginamgim.place.util.PlaceCategory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -15,7 +16,6 @@ import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -23,14 +23,6 @@ import java.util.Optional;
 public class PlaceCsvStore {
 
     private static final String HEADER = "kakao_place_id,place_name,latitude,longitude,phone,address,kakao_map_url,group_name";
-    private static final Map<String, List<String>> CATEGORY_ALIASES = Map.of(
-            "cafe", List.of("cafe", "카페", "ce7"),
-            "food", List.of("food", "음식", "맛집", "식당", "fd6"),
-            "shop", List.of("shop", "편집샵", "상점", "쇼핑"),
-            "park", List.of("park", "공원"),
-            "culture", List.of("culture", "문화", "전시", "ct1")
-    );
-
     private final Path cacheFilePath;
 
     // 설정된 CSV 캐시 파일 경로를 초기화하고 파일이 없으면 생성한다.
@@ -276,12 +268,11 @@ public class PlaceCsvStore {
 
     // 장소의 그룹명이 요청 카테고리 또는 카테고리 별칭과 매칭되는지 확인한다.
     private boolean matchesCategory(PlaceInfo place, String category) {
-        String normalizedGroupName = normalize(place.getGroupName());
-        String normalizedCategory = normalize(category);
-        List<String> aliases = CATEGORY_ALIASES.getOrDefault(normalizedCategory, List.of(normalizedCategory));
+        String normalizedGroupName = PlaceCategory.normalizeForComparison(place.getGroupName());
+        List<String> aliases = PlaceCategory.aliasesFor(category);
 
         return aliases.stream()
-                .map(this::normalize)
+                .map(PlaceCategory::normalizeForComparison)
                 .anyMatch(normalizedGroupName::contains);
     }
 
