@@ -3,6 +3,7 @@ package com.yeginamgim.place.service;
 import com.yeginamgim.board.dto.PlaceInfo;
 import com.yeginamgim.global.exception.KakaoLocalApiException;
 import com.yeginamgim.place.dto.request.PlaceSearchRequest;
+import com.yeginamgim.place.util.PlaceCategory;
 import lombok.Data;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -12,7 +13,6 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.util.UriBuilder;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 @Service
@@ -21,16 +21,6 @@ public class KakaoLocalService {
     private static final String KAKAO_LOCAL_BASE_URL = "https://dapi.kakao.com";
     private static final int DEFAULT_RADIUS = 2000;
     private static final int DEFAULT_SIZE = 10;
-    private static final Map<String, String> CATEGORY_CODES = Map.of(
-            "cafe", "CE7",
-            "food", "FD6",
-            "culture", "CT1"
-    );
-    private static final Map<String, String> CATEGORY_KEYWORDS = Map.of(
-            "park", "공원",
-            "shop", "편집샵"
-    );
-
     private final RestClient restClient;
     private final String restApiKey;
 
@@ -88,28 +78,15 @@ public class KakaoLocalService {
         }
     }
 
-    // 요청 카테고리에 맞춰 Kakao 카테고리 검색 또는 키워드 검색을 수행한다.
+    // 요청 카테고리에 맞춰 Kakao 카테고리 검색을 수행한다.
     public List<PlaceInfo> searchByCategory(PlaceSearchRequest request) {
         if (!hasApiKey() || request == null || !StringUtils.hasText(request.getCategory())) {
             return List.of();
         }
 
-        String category = request.getCategory().trim().toLowerCase();
-        String categoryCode = CATEGORY_CODES.get(category);
+        String categoryCode = PlaceCategory.toKakaoCategoryCode(request.getCategory()).orElse(null);
         if (StringUtils.hasText(categoryCode)) {
             return searchByKakaoCategoryCode(request, categoryCode);
-        }
-
-        String keyword = CATEGORY_KEYWORDS.get(category);
-        if (StringUtils.hasText(keyword)) {
-            return searchByKeyword(PlaceSearchRequest.builder()
-                    .latitude(request.getLatitude())
-                    .longitude(request.getLongitude())
-                    .radius(request.getRadius())
-                    .query(keyword)
-                    .page(request.getPage())
-                    .limit(request.getLimit())
-                    .build());
         }
 
         return List.of();
