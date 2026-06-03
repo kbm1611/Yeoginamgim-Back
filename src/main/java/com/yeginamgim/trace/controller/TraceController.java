@@ -39,9 +39,10 @@ public class TraceController {
             @PathVariable Long boardId,
             @RequestParam(defaultValue = "latest") String sort,
             @RequestParam(required = false) Integer limit,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime before
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime before,
+            @RequestHeader(value = "Authorization", required = false) String authorization
     ) {
-        return traceService.getTracesByBoardId(boardId, sort, limit, before);
+        return traceService.getTracesByBoardId(boardId, sort, limit, before, authorization);
     }
 
     // board_id와 좌표 범위 기준 흔적 목록 조회
@@ -55,9 +56,10 @@ public class TraceController {
             @RequestParam Integer maxY,
             @RequestParam(defaultValue = "latest") String sort,
             @RequestParam(required = false) Integer limit,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime before
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime before,
+            @RequestHeader(value = "Authorization", required = false) String authorization
     ) {
-        return traceService.getTracesByBoardArea(boardId, minX, maxX, minY, maxY, sort, limit, before);
+        return traceService.getTracesByBoardArea(boardId, minX, maxX, minY, maxY, sort, limit, before, authorization);
     }
 
     // board_id 기준 흔적 생성
@@ -72,8 +74,11 @@ public class TraceController {
 
     // trace_id 기준 흔적 상세 조회
     @GetMapping("/traces/{traceId}")
-    public TraceResponse getTrace(@PathVariable Long traceId) {
-        return traceService.getTrace(traceId);
+    public TraceResponse getTrace(
+            @PathVariable Long traceId,
+            @RequestHeader(value = "Authorization", required = false) String authorization
+    ) {
+        return traceService.getTrace(traceId, authorization);
     }
 
     // 흔적 이미지 업로드
