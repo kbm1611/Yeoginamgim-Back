@@ -1,6 +1,7 @@
 package com.yeginamgim.user.service;
 
 import com.yeginamgim.global.exception.DuplicateMemberException;
+import com.yeginamgim.global.exception.InvalidBirthDateException;
 import com.yeginamgim.global.exception.UserNotFoundException;
 import com.yeginamgim.global.file.FileService;
 import com.yeginamgim.user.dto.request.UserSignupRequestDto;
@@ -14,10 +15,17 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+
+import java.time.DateTimeException;
+import java.time.YearMonth;
+import java.util.regex.Pattern;
 
 @Service
 @RequiredArgsConstructor
 public class UserService {
+    private static final Pattern BIRTH_DATE_PATTERN = Pattern.compile("^\\d{6}$");
+
     private final UserRepository userRepo;
     private final FileService fileSvc;
 
@@ -30,6 +38,7 @@ public class UserService {
         }
 
         UserEntity saveEntity = userReqDto.toEntity();
+        saveEntity.setBirthDate(normalizeBirthDate(userReqDto.getBirthDate()));
 
         String fileName = fileSvc.profileUpload(userReqDto.getProfileUploadFile());
         if (fileName != null) {
@@ -70,6 +79,10 @@ public class UserService {
             userEntity.setNickname(userUpdDto.getNickname());
         }
 
+        if (userUpdDto.getBirthDate() != null) {
+            userEntity.setBirthDate(normalizeBirthDate(userUpdDto.getBirthDate()));
+        }
+
         String fileName = fileSvc.profileUpload(userUpdDto.getProfileUploadFile());
         if (fileName != null) {
             String oldProfileImageUrl = userEntity.getProfileImageUrl();
@@ -78,5 +91,32 @@ public class UserService {
         }
 
         return userEntity.toInfoDto();
+    }
+
+    private String normalizeBirthDate(String birthDate) {
+        if (!StringUtils.hasText(birthDate)) {
+            return null;
+        }
+
+        String normalizedBirthDate = birthDate.trim();
+        if (!BIRTH_DATE_PATTERN.matcher(normalizedBirthDate).matches()
+                || !isActualBirthDate(normalizedBirthDate)) {
+            throw new InvalidBirthDateException();
+        }
+
+        return normalizedBirthDate;
+    }
+
+    private boolean isActualBirthDate(String birthDate) {
+        int year = Integer.parseInt(birthDate.substring(0, 2));
+        int month = Integer.parseInt(birthDate.substring(2, 4));
+        int day = Integer.parseInt(birthDate.substring(4, 6));
+        int fullYear = year >= 50 ? 1900 + year : 2000 + year;
+
+        try {
+            return YearMonth.of(fullYear, month).isValidDay(day);
+        } catch (DateTimeException exception) {
+            return false;
+        }
     }
 }

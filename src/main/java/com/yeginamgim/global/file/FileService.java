@@ -43,7 +43,7 @@ public class FileService {
         try {
             Files.deleteIfExists(deletePath);
         } catch (IOException e) {
-            System.out.println(e);
+            return;
         }
     }
 
@@ -63,7 +63,8 @@ public class FileService {
             Files.createDirectories(uploadDir);
             uploadFile.transferTo(uploadRealPath.toFile());
             return fileName;
-        } catch (IOException e) { System.out.println(e); }
-        return null;
+        } catch (IOException e) {
+            throw new FileUploadException("file upload failed.");
+        }
     }
 }

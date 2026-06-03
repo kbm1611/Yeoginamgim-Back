@@ -34,6 +34,9 @@ public class UserEntity extends BaseTime {
     @Column( length = 1000 )
     private String profileImageUrl;
 
+    @Column( name = "birth_date", length = 6 )
+    private String birthDate;
+
     @Enumerated(EnumType.STRING)
     @Column( length = 30, nullable = false )
     private LoginProvider provider;
@@ -46,6 +49,7 @@ public class UserEntity extends BaseTime {
                 .email(email)
                 .nickname(nickname)
                 .profileImageUrl( profileImageUrl )
+                .birthDate(birthDate)
                 .build();
     }
 }
