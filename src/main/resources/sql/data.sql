@@ -11,16 +11,16 @@
 -- 9 qwer123@sample.com = xcxc2323
 -- 10 qwer1234@sample.com = qwer1234
 INSERT IGNORE INTO users (user_id, email, password, nickname, birth_date, provider, provider_id, created_at, updated_at) VALUES
-(1, 'example1@sample.com', '$2a$10$9F69wG1YfiGd3d.iYGhtxO9lRBDef/3HKNEt84l1dkW2gxk1sBUK.', '새벽달', '990101', 'kakao', 1, '2026-05-28 14:32:18', '2026-05-31 14:32:18'),
-(2, 'qwe1@sample.com', '$2a$10$uPyw/pkAt1EOn/wgkQXMb.CADQaLFc//YudD4CMP9QorsiHUjj.nq', '은하수', '060615', 'kakao', 1, '2026-05-28 14:32:18', '2026-05-31 14:32:18'),
-(3, 'qwe12@sample.com', '$2a$10$HyCoejQzT/wK/05yr1WbruEK6Kfhi5CarIzlSZpfYdGYeFJsmrLvi', '달빛별', '030228', 'google', 2, '2026-05-28 14:32:18', '2026-05-31 14:32:18'),
-(4, 'qwe123@sample.com', '$2a$10$65fc/j4DNnSTd1Zm/w9AEelC0JU8egB89Yng7JdG.LTCYuCmEl6Ee', '푸른밤', '880229', 'google', 2, '2026-05-28 14:32:18', '2026-05-31 14:32:18'),
-(5, 'qwe1234@sample.com', '$2a$10$c3AeLX.RMgNCFkTqOqQzFuuE0npRVuOgXjNiwKwsvHkByw485V.cO', '여름비', NULL, 'google', 2, '2026-05-28 14:32:18', '2026-05-31 14:32:18'),
-(6, 'qwe12345@sample.com', '$2a$10$/vedSpohvnFY44VAxdQ1QutVAVDef.a.On6ATF3nYrn3i9mMmqLxe', '잔잔한바다', '751231', 'google', 2, '2026-05-28 14:32:18', '2026-05-31 14:32:18'),
-(7, 'qwer1@sample.com', '$2a$10$TN0HE/iKhyHpL05pFn3Ft.vSiUrGV/l0.MKl/ijn1niMWOI7b8GK2', '하늘조각', '000101', 'google', 2, '2026-05-28 14:32:18', '2026-05-31 14:32:18'),
-(8, 'qwer12@sample.com', '$2a$10$cT.RTK9ITbxAu1/xW.EdO.l11RYydjSIoK0j1rDTWiu/NYR.dNXpW', '바람꽃', '120229', 'google', 2, '2026-05-28 14:32:18', '2026-05-31 14:32:18'),
-(9, 'qwer123@sample.com', '$2a$10$E.F7/8UZOB0cT1r12AeDk.9mcG2KWOGtvwVy7kstTgYYOeB2bbZAW', '치즈냥', NULL, 'kakao', 1, '2026-05-28 14:32:18', '2026-05-31 14:32:18'),
-(10, 'qwer1234@sample.com', '$2a$10$2kzFTJdR2u9Xc9gwoNMdaOuL8zsxsEe8.t6A3jrPbfnN0.e7JfTi6', '솜구름', '491231', 'kakao', 1, '2026-05-28 14:32:18', '2026-06-02 14:32:18');
+(1, 'example1@sample.com', '$2a$10$9F69wG1YfiGd3d.iYGhtxO9lRBDef/3HKNEt84l1dkW2gxk1sBUK.', '새벽달', '990101', 'LOCAL', NULL, '2026-05-28 14:32:18', '2026-05-31 14:32:18'),
+(2, 'qwe1@sample.com', '$2a$10$uPyw/pkAt1EOn/wgkQXMb.CADQaLFc//YudD4CMP9QorsiHUjj.nq', '은하수', '060615', 'LOCAL', NULL, '2026-05-28 14:32:18', '2026-05-31 14:32:18'),
+(3, 'qwe12@sample.com', '$2a$10$HyCoejQzT/wK/05yr1WbruEK6Kfhi5CarIzlSZpfYdGYeFJsmrLvi', '달빛별', '030228', 'LOCAL', NULL, '2026-05-28 14:32:18', '2026-05-31 14:32:18'),
+(4, 'qwe123@sample.com', '$2a$10$65fc/j4DNnSTd1Zm/w9AEelC0JU8egB89Yng7JdG.LTCYuCmEl6Ee', '푸른밤', '880229', 'LOCAL', NULL, '2026-05-28 14:32:18', '2026-05-31 14:32:18'),
+(5, 'qwe1234@sample.com', '$2a$10$c3AeLX.RMgNCFkTqOqQzFuuE0npRVuOgXjNiwKwsvHkByw485V.cO', '여름비', NULL, 'LOCAL', NULL, '2026-05-28 14:32:18', '2026-05-31 14:32:18'),
+(6, 'qwe12345@sample.com', '$2a$10$/vedSpohvnFY44VAxdQ1QutVAVDef.a.On6ATF3nYrn3i9mMmqLxe', '잔잔한바다', '751231', 'LOCAL', NULL, '2026-05-28 14:32:18', '2026-05-31 14:32:18'),
+(7, 'qwer1@sample.com', '$2a$10$TN0HE/iKhyHpL05pFn3Ft.vSiUrGV/l0.MKl/ijn1niMWOI7b8GK2', '하늘조각', '000101', 'LOCAL', NULL, '2026-05-28 14:32:18', '2026-05-31 14:32:18'),
+(8, 'qwer12@sample.com', '$2a$10$cT.RTK9ITbxAu1/xW.EdO.l11RYydjSIoK0j1rDTWiu/NYR.dNXpW', '바람꽃', '120229', 'LOCAL', NULL, '2026-05-28 14:32:18', '2026-05-31 14:32:18'),
+(9, 'qwer123@sample.com', '$2a$10$E.F7/8UZOB0cT1r12AeDk.9mcG2KWOGtvwVy7kstTgYYOeB2bbZAW', '치즈냥', NULL, 'LOCAL', NULL, '2026-05-28 14:32:18', '2026-05-31 14:32:18'),
+(10, 'qwer1234@sample.com', '$2a$10$2kzFTJdR2u9Xc9gwoNMdaOuL8zsxsEe8.t6A3jrPbfnN0.e7JfTi6', '솜구름', '491231', 'LOCAL', NULL, '2026-05-28 14:32:18', '2026-06-02 14:32:18');
 
 -- board 샘플
 INSERT IGNORE INTO board (board_id, kakao_place_id, created_at) VALUES
