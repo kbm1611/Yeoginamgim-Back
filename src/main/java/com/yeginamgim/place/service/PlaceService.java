@@ -11,6 +11,7 @@ import com.yeginamgim.place.dto.response.PlaceResponse;
 import com.yeginamgim.place.dto.response.PopularPlaceResponse;
 import com.yeginamgim.place.repository.PlaceCsvStore;
 import com.yeginamgim.place.util.GeoUtils;
+import com.yeginamgim.place.util.PlaceCategory;
 import com.yeginamgim.place.util.PlaceSearchRequestValidator;
 import com.yeginamgim.trace.repository.TraceRepository;
 import lombok.RequiredArgsConstructor;
@@ -55,14 +56,15 @@ public class PlaceService {
 
         Map<String, PlaceResponse> responsesByKakaoPlaceId = new LinkedHashMap<>();
         toPlaceResponses(cachedPlaces).stream()
-                .sorted((left, right) -> compareByDistance(
+                .sorted((left, right) -> compareNearbyPlaces(
                         left,
                         right,
+                        safeRequest.getCategory(),
                         safeRequest.getLatitude(),
                         safeRequest.getLongitude()
                 ))
                 .limit(limit)
-                .forEach(response -> responsesByKakaoPlaceId.putIfAbsent(response.getKakaoPlaceId(), response));
+                .forEach(response -> putOrMergeResponse(responsesByKakaoPlaceId, response));
 
         if (responsesByKakaoPlaceId.size() < limit) {
             PlaceSearchRequest kakaoRequest = PlaceSearchRequest.builder()
@@ -75,14 +77,15 @@ public class PlaceService {
                     .build();
 
             toPlaceResponses(kakaoLocalService.searchByCategory(kakaoRequest)).stream()
-                    .forEach(response -> responsesByKakaoPlaceId.putIfAbsent(response.getKakaoPlaceId(), response));
+                    .forEach(response -> putOrMergeResponse(responsesByKakaoPlaceId, response));
         }
 
         // 리스트로 반환
         return responsesByKakaoPlaceId.values().stream()
-                .sorted((left, right) -> compareByDistance(
+                .sorted((left, right) -> compareNearbyPlaces(
                         left,
                         right,
+                        safeRequest.getCategory(),
                         safeRequest.getLatitude(),
                         safeRequest.getLongitude()
                 ))
@@ -243,7 +246,51 @@ public class PlaceService {
 
         placeInfos.stream()
                 .filter(placeInfo -> placeInfo != null && StringUtils.hasText(placeInfo.getKakaoPlaceId()))
-                .forEach(placeInfo -> placesByKakaoPlaceId.putIfAbsent(placeInfo.getKakaoPlaceId(), placeInfo));
+                .forEach(placeInfo -> placesByKakaoPlaceId.merge(
+                        placeInfo.getKakaoPlaceId(),
+                        placeInfo,
+                        this::mergePlaceInfo
+                ));
+    }
+
+    private void putOrMergeResponse(Map<String, PlaceResponse> responsesByKakaoPlaceId, PlaceResponse response) {
+        if (response == null || !StringUtils.hasText(response.getKakaoPlaceId())) {
+            return;
+        }
+
+        responsesByKakaoPlaceId.merge(response.getKakaoPlaceId(), response, this::mergePlaceResponse);
+    }
+
+    private PlaceInfo mergePlaceInfo(PlaceInfo existing, PlaceInfo incoming) {
+        return PlaceInfo.builder()
+                .kakaoPlaceId(firstText(existing.getKakaoPlaceId(), incoming.getKakaoPlaceId()))
+                .placeName(firstText(existing.getPlaceName(), incoming.getPlaceName()))
+                .latitude(existing.getLatitude() != null ? existing.getLatitude() : incoming.getLatitude())
+                .longitude(existing.getLongitude() != null ? existing.getLongitude() : incoming.getLongitude())
+                .phone(firstText(existing.getPhone(), incoming.getPhone()))
+                .address(firstText(existing.getAddress(), incoming.getAddress()))
+                .kakaoMapUrl(firstText(existing.getKakaoMapUrl(), incoming.getKakaoMapUrl()))
+                .groupName(firstText(existing.getGroupName(), incoming.getGroupName()))
+                .build();
+    }
+
+    private PlaceResponse mergePlaceResponse(PlaceResponse existing, PlaceResponse incoming) {
+        return PlaceResponse.builder()
+                .kakaoPlaceId(firstText(existing.getKakaoPlaceId(), incoming.getKakaoPlaceId()))
+                .placeName(firstText(existing.getPlaceName(), incoming.getPlaceName()))
+                .latitude(existing.getLatitude() != null ? existing.getLatitude() : incoming.getLatitude())
+                .longitude(existing.getLongitude() != null ? existing.getLongitude() : incoming.getLongitude())
+                .phone(firstText(existing.getPhone(), incoming.getPhone()))
+                .address(firstText(existing.getAddress(), incoming.getAddress()))
+                .kakaoMapUrl(firstText(existing.getKakaoMapUrl(), incoming.getKakaoMapUrl()))
+                .groupName(firstText(existing.getGroupName(), incoming.getGroupName()))
+                .traceCount(Math.max(defaultLong(existing.getTraceCount()), defaultLong(incoming.getTraceCount())))
+                .boardId(existing.getBoardId() != null ? existing.getBoardId() : incoming.getBoardId())
+                .build();
+    }
+
+    private String firstText(String preferred, String fallback) {
+        return StringUtils.hasText(preferred) ? preferred : fallback;
     }
 
     private boolean matchesLocation(
@@ -360,8 +407,22 @@ public class PlaceService {
                 ));
     }
 
-    // 기준 좌표와 가까운 장소가 먼저 오도록 정렬한다.
-    private int compareByDistance(PlaceResponse left, PlaceResponse right, Double latitude, Double longitude) {
+    // 선택 카테고리에 맞는 결과를 먼저 두고, 거리와 보드/trace 신호를 함께 본다.
+    private int compareNearbyPlaces(
+            PlaceResponse left,
+            PlaceResponse right,
+            String selectedCategory,
+            Double latitude,
+            Double longitude
+    ) {
+        int categoryCompare = Boolean.compare(
+                matchesSelectedCategory(right, selectedCategory),
+                matchesSelectedCategory(left, selectedCategory)
+        );
+        if (categoryCompare != 0) {
+            return categoryCompare;
+        }
+
         int distanceCompare = Double.compare(
                 GeoUtils.distanceInMeters(latitude, longitude, left.getLatitude(), left.getLongitude()),
                 GeoUtils.distanceInMeters(latitude, longitude, right.getLatitude(), right.getLongitude())
@@ -370,7 +431,21 @@ public class PlaceService {
             return distanceCompare;
         }
 
+        int boardCompare = Boolean.compare(right.getBoardId() != null, left.getBoardId() != null);
+        if (boardCompare != 0) {
+            return boardCompare;
+        }
+
+        int traceCompare = Long.compare(defaultLong(right.getTraceCount()), defaultLong(left.getTraceCount()));
+        if (traceCompare != 0) {
+            return traceCompare;
+        }
+
         return defaultString(left.getPlaceName()).compareTo(defaultString(right.getPlaceName()));
+    }
+
+    private boolean matchesSelectedCategory(PlaceResponse response, String selectedCategory) {
+        return PlaceCategory.matchesSelectedCategory(response.getPlaceName(), response.getGroupName(), selectedCategory);
     }
 
     // Long값이 null이면 0으로 바꿔주는 메소드

@@ -12,7 +12,9 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.util.UriBuilder;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Service
@@ -86,12 +88,36 @@ public class KakaoLocalService {
             return List.of();
         }
 
-        String categoryCode = PlaceCategory.toKakaoCategoryCode(request.getCategory()).orElse(null);
-        if (StringUtils.hasText(categoryCode)) {
-            return searchByKakaoCategoryCode(request, categoryCode);
+        int limit = defaultLimit(request.getLimit());
+        Map<String, PlaceInfo> placesByKakaoPlaceId = new LinkedHashMap<>();
+
+        for (String categoryCode : PlaceCategory.kakaoCategoryCodesFor(request.getCategory())) {
+            if (placesByKakaoPlaceId.size() >= limit) {
+                break;
+            }
+            putPlacesByKakaoPlaceId(placesByKakaoPlaceId, searchByKakaoCategoryCode(
+                    requestWithLimit(request, limit - placesByKakaoPlaceId.size()),
+                    categoryCode
+            ));
         }
 
-        return List.of();
+        for (String keywordQuery : PlaceCategory.keywordQueriesFor(request.getCategory())) {
+            if (placesByKakaoPlaceId.size() >= limit) {
+                break;
+            }
+            putPlacesByKakaoPlaceId(placesByKakaoPlaceId, searchByKeyword(PlaceSearchRequest.builder()
+                    .query(keywordQuery)
+                    .latitude(request.getLatitude())
+                    .longitude(request.getLongitude())
+                    .radius(request.getRadius())
+                    .page(request.getPage())
+                    .limit(limit - placesByKakaoPlaceId.size())
+                    .build()));
+        }
+
+        return placesByKakaoPlaceId.values().stream()
+                .limit(limit)
+                .toList();
     }
 
     // Kakao 카테고리 그룹 코드 기반으로 장소 목록을 조회한다.
@@ -122,6 +148,49 @@ public class KakaoLocalService {
     // Kakao API 호출 실패를 global 예외로 변환한다.
     private KakaoLocalApiException kakaoUnavailable(RuntimeException exception) {
         return new KakaoLocalApiException(exception);
+    }
+
+    private void putPlacesByKakaoPlaceId(Map<String, PlaceInfo> placesByKakaoPlaceId, List<PlaceInfo> placeInfos) {
+        if (placeInfos == null) {
+            return;
+        }
+
+        placeInfos.stream()
+                .filter(placeInfo -> placeInfo != null && StringUtils.hasText(placeInfo.getKakaoPlaceId()))
+                .forEach(placeInfo -> placesByKakaoPlaceId.merge(
+                        placeInfo.getKakaoPlaceId(),
+                        placeInfo,
+                        this::mergePlaceInfo
+                ));
+    }
+
+    private PlaceSearchRequest requestWithLimit(PlaceSearchRequest request, int limit) {
+        return PlaceSearchRequest.builder()
+                .latitude(request.getLatitude())
+                .longitude(request.getLongitude())
+                .radius(request.getRadius())
+                .category(request.getCategory())
+                .query(request.getQuery())
+                .page(request.getPage())
+                .limit(limit)
+                .build();
+    }
+
+    private PlaceInfo mergePlaceInfo(PlaceInfo existing, PlaceInfo incoming) {
+        return PlaceInfo.builder()
+                .kakaoPlaceId(firstText(existing.getKakaoPlaceId(), incoming.getKakaoPlaceId()))
+                .placeName(firstText(existing.getPlaceName(), incoming.getPlaceName()))
+                .latitude(existing.getLatitude() != null ? existing.getLatitude() : incoming.getLatitude())
+                .longitude(existing.getLongitude() != null ? existing.getLongitude() : incoming.getLongitude())
+                .phone(firstText(existing.getPhone(), incoming.getPhone()))
+                .address(firstText(existing.getAddress(), incoming.getAddress()))
+                .kakaoMapUrl(firstText(existing.getKakaoMapUrl(), incoming.getKakaoMapUrl()))
+                .groupName(firstText(existing.getGroupName(), incoming.getGroupName()))
+                .build();
+    }
+
+    private String firstText(String preferred, String fallback) {
+        return StringUtils.hasText(preferred) ? preferred : fallback;
     }
 
     // 키워드 검색 API 호출 URI를 생성한다.

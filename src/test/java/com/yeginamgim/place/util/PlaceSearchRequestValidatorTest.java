@@ -43,15 +43,29 @@ class PlaceSearchRequestValidatorTest {
     }
 
     @Test
-    void validateNearbyRejectsRemovedShopCategory() {
+    void validateNearbyAcceptsShoppingAlias() {
         PlaceSearchRequest request = PlaceSearchRequest.builder()
                 .latitude(37.4979)
                 .longitude(127.0276)
                 .category("shop")
                 .build();
 
-        assertThatThrownBy(() -> validator.validateNearby(request))
-                .isInstanceOf(InvalidPlaceRequestException.class);
+        PlaceSearchRequest validated = validator.validateNearby(request);
+
+        assertThat(validated.getCategory()).isEqualTo("SHOPPING");
+    }
+
+    @Test
+    void validateNearbyAcceptsParkAlias() {
+        PlaceSearchRequest request = PlaceSearchRequest.builder()
+                .latitude(37.4979)
+                .longitude(127.0276)
+                .category("park")
+                .build();
+
+        PlaceSearchRequest validated = validator.validateNearby(request);
+
+        assertThat(validated.getCategory()).isEqualTo("PARK");
     }
 
     @ParameterizedTest
@@ -158,6 +172,6 @@ class PlaceSearchRequestValidatorTest {
     }
 
     private static Stream<String> removedNearbyCategories() {
-        return Stream.of("library", "park");
+        return Stream.of("library");
     }
 }

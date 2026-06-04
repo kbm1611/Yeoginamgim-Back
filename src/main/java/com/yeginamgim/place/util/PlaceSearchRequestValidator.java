@@ -35,12 +35,15 @@ public class PlaceSearchRequestValidator {
             throw new InvalidPlaceRequestException("카테고리는 필수입니다.");
         }
 
-        String categoryCode = PlaceCategory.toKakaoCategoryCode(request.getCategory()).orElse(null);
-        if (!StringUtils.hasText(categoryCode)) {
+        String categoryKey = PlaceCategory.toExactKakaoCategoryCode(request.getCategory())
+                .or(() -> PlaceCategory.toServiceCategoryKey(request.getCategory()))
+                .or(() -> PlaceCategory.toKakaoCategoryCode(request.getCategory()))
+                .orElse(null);
+        if (!StringUtils.hasText(categoryKey)) {
             throw new InvalidPlaceRequestException("지원하지 않는 주변 장소 카테고리입니다.");
         }
 
-        request.setCategory(categoryCode);
+        request.setCategory(categoryKey);
         return request;
     }
 

@@ -140,7 +140,7 @@ class PlaceServiceTest {
     void nearbyFillsShortCacheResultsWithKakaoAndRemovesDuplicates() throws Exception {
         PlaceService placeService = placeServiceWithCache("""
                 kakao_place_id,place_name,latitude,longitude,phone,address,kakao_map_url,group_name
-                cache-board,Cache Board Cafe,37.4979,127.0276,02-0000-0000,Seoul,https://place.map.kakao.com/cache-board,cafe
+                cache-board,Cache Board Cafe,37.4979,127.0276,,Seoul,https://place.map.kakao.com/cache-board,cafe
                 """);
         when(boardRepository.findByKakaoPlaceIdIn(anyCollection())).thenReturn(List.of(BoardEntity.builder()
                 .boardId(7L)
@@ -156,6 +156,7 @@ class PlaceServiceTest {
                         .placeName("Duplicate Cafe")
                         .latitude(37.4979)
                         .longitude(127.0276)
+                        .phone("02-2222-2222")
                         .groupName("cafe")
                         .build(),
                 PlaceInfo.builder()
@@ -177,6 +178,7 @@ class PlaceServiceTest {
 
         assertThat(responses).extracting(PlaceResponse::getKakaoPlaceId)
                 .containsExactly("cache-board", "kakao-new");
+        assertThat(responses.get(0).getPhone()).isEqualTo("02-2222-2222");
     }
 
     @Test
@@ -374,6 +376,78 @@ class PlaceServiceTest {
 
         assertThat(responses).extracting(PlaceResponse::getKakaoPlaceId)
                 .containsExactly("kakao-near", "cache-far");
+    }
+
+    @Test
+    void nearbyPrioritizesSelectedCategoryMatchesBeforeNearbyFallbackNoise() throws Exception {
+        PlaceService placeService = placeServiceWithCache("""
+                kakao_place_id,place_name,latitude,longitude,phone,address,kakao_map_url,group_name
+                """);
+        when(boardRepository.findByKakaoPlaceIdIn(anyCollection())).thenReturn(List.of());
+        when(traceRepository.countActiveByKakaoPlaceIds(anyCollection())).thenReturn(List.of());
+        when(kakaoLocalService.searchByCategory(org.mockito.ArgumentMatchers.any())).thenReturn(List.of(
+                PlaceInfo.builder()
+                        .kakaoPlaceId("near-cafe")
+                        .placeName("Nearby Cafe")
+                        .latitude(37.4979)
+                        .longitude(127.0276)
+                        .groupName("\uCE74\uD398")
+                        .build(),
+                PlaceInfo.builder()
+                        .kakaoPlaceId("far-park")
+                        .placeName("\uC11C\uC6B8\uC232 \uACF5\uC6D0")
+                        .latitude(37.5000)
+                        .longitude(127.0276)
+                        .groupName("\uAD00\uAD11\uBA85\uC18C")
+                        .build()
+        ));
+
+        List<PlaceResponse> responses = placeService.searchNearbyPlaces(PlaceSearchRequest.builder()
+                .latitude(37.4979)
+                .longitude(127.0276)
+                .category("PARK")
+                .limit(2)
+                .build());
+
+        assertThat(responses).extracting(PlaceResponse::getKakaoPlaceId)
+                .containsExactly("far-park", "near-cafe");
+    }
+
+    @Test
+    void nearbyUsesBoardAndTraceCountAfterCategoryAndDistance() throws Exception {
+        PlaceService placeService = placeServiceWithCache("""
+                kakao_place_id,place_name,latitude,longitude,phone,address,kakao_map_url,group_name
+                no-board-many-traces,No Board Many Traces,37.4979,127.0276,02-0000-0000,Seoul,https://place.map.kakao.com/no-board-many-traces,cafe
+                board-few-traces,Board Few Traces,37.4979,127.0276,02-1111-1111,Seoul,https://place.map.kakao.com/board-few-traces,cafe
+                board-many-traces,Board Many Traces,37.4979,127.0276,02-2222-2222,Seoul,https://place.map.kakao.com/board-many-traces,cafe
+                """);
+        when(boardRepository.findByKakaoPlaceIdIn(anyCollection())).thenReturn(List.of(
+                BoardEntity.builder()
+                        .boardId(1L)
+                        .kakaoPlaceId("board-few-traces")
+                        .createdAt(LocalDateTime.now())
+                        .build(),
+                BoardEntity.builder()
+                        .boardId(2L)
+                        .kakaoPlaceId("board-many-traces")
+                        .createdAt(LocalDateTime.now())
+                        .build()
+        ));
+        when(traceRepository.countActiveByKakaoPlaceIds(anyCollection())).thenReturn(List.of(
+                placeTraceCount("no-board-many-traces", 99L),
+                placeTraceCount("board-few-traces", 1L),
+                placeTraceCount("board-many-traces", 7L)
+        ));
+
+        List<PlaceResponse> responses = placeService.searchNearbyPlaces(PlaceSearchRequest.builder()
+                .latitude(37.4979)
+                .longitude(127.0276)
+                .category("CE7")
+                .limit(3)
+                .build());
+
+        assertThat(responses).extracting(PlaceResponse::getKakaoPlaceId)
+                .containsExactly("board-many-traces", "board-few-traces", "no-board-many-traces");
     }
 
     @Test

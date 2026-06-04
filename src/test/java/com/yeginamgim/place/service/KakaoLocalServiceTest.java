@@ -241,6 +241,66 @@ class KakaoLocalServiceTest {
         server.verify();
     }
 
+    @Test
+    void categorySearchUsesSchoolThenAcademyForEducationCategory() {
+        RestClient.Builder builder = RestClient.builder().baseUrl("https://dapi.kakao.com");
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        KakaoLocalService kakaoLocalService = new KakaoLocalService("test-key", builder.build());
+
+        server.expect(request -> {
+                    assertThat(request.getURI().getPath()).isEqualTo("/v2/local/search/category.json");
+                    assertThat(request.getURI().getRawQuery()).contains("category_group_code=SC4");
+                })
+                .andExpect(header("Authorization", "KakaoAK test-key"))
+                .andRespond(withSuccess("{\"documents\":[]}", MediaType.APPLICATION_JSON));
+        server.expect(request -> {
+                    assertThat(request.getURI().getPath()).isEqualTo("/v2/local/search/category.json");
+                    assertThat(request.getURI().getRawQuery()).contains("category_group_code=AC5");
+                })
+                .andExpect(header("Authorization", "KakaoAK test-key"))
+                .andRespond(withSuccess("{\"documents\":[]}", MediaType.APPLICATION_JSON));
+
+        assertThat(kakaoLocalService.searchByCategory(PlaceSearchRequest.builder()
+                .category("EDU")
+                .latitude(37.4979)
+                .longitude(127.0276)
+                .radius(1000)
+                .build())).isEmpty();
+
+        server.verify();
+    }
+
+    @Test
+    void categorySearchUsesKeywordFallbackForParkCategory() {
+        RestClient.Builder builder = RestClient.builder().baseUrl("https://dapi.kakao.com");
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        KakaoLocalService kakaoLocalService = new KakaoLocalService("test-key", builder.build());
+
+        server.expect(request -> {
+                    assertThat(request.getURI().getPath()).isEqualTo("/v2/local/search/keyword.json");
+                    assertThat(request.getURI().getQuery()).contains("query=\uACF5\uC6D0");
+                    assertThat(request.getURI().getQuery()).contains("y=37.4979");
+                    assertThat(request.getURI().getQuery()).contains("x=127.0276");
+                    assertThat(request.getURI().getQuery()).contains("radius=1000");
+                })
+                .andExpect(header("Authorization", "KakaoAK test-key"))
+                .andRespond(withSuccess("""
+                        {"documents":[{"id":"park-1","place_name":"Park One","category_group_name":"\uAD00\uAD11\uBA85\uC18C","address_name":"Seoul","x":"127.0276","y":"37.4979"}]}
+                        """, MediaType.APPLICATION_JSON));
+
+        assertThat(kakaoLocalService.searchByCategory(PlaceSearchRequest.builder()
+                .category("PARK")
+                .latitude(37.4979)
+                .longitude(127.0276)
+                .radius(1000)
+                .limit(1)
+                .build()))
+                .extracting("kakaoPlaceId")
+                .containsExactly("park-1");
+
+        server.verify();
+    }
+
     @ParameterizedTest
     @MethodSource("removedKeywordCategories")
     void categorySearchReturnsEmptyForRemovedKeywordCategories(String category) {
@@ -278,6 +338,6 @@ class KakaoLocalServiceTest {
     }
 
     private static Stream<String> removedKeywordCategories() {
-        return Stream.of("library", "park");
+        return Stream.of("library");
     }
 }

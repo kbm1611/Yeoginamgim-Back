@@ -268,12 +268,7 @@ public class PlaceCsvStore {
 
     // 장소의 그룹명이 요청 카테고리 또는 카테고리 별칭과 매칭되는지 확인한다.
     private boolean matchesCategory(PlaceInfo place, String category) {
-        String normalizedGroupName = PlaceCategory.normalizeForComparison(place.getGroupName());
-        List<String> aliases = PlaceCategory.aliasesFor(category);
-
-        return aliases.stream()
-                .map(PlaceCategory::normalizeForComparison)
-                .anyMatch(normalizedGroupName::contains);
+        return PlaceCategory.matchesSelectedCategory(place.getPlaceName(), place.getGroupName(), category);
     }
 
     // 비교를 위해 문자열을 소문자와 trim 기준으로 정규화한다.
