@@ -93,9 +93,16 @@ public class PlaceService {
     // 인기 장소 목록 조회
     @Transactional(readOnly = true)
     public List<PopularPlaceResponse> getPopularPlaces(Integer limit) {
+        return getPopularPlaces(limit, null);
+    }
+
+    // 인기 장소 목록 조회
+    @Transactional(readOnly = true)
+    public List<PopularPlaceResponse> getPopularPlaces(Integer limit, String district) {
         int normalizedLimit = placeSearchRequestValidator.normalizeLimit(limit);
         // 인기 순위를 붙이 위한 카운터. 람다식 안에서 쓰기 위한 객체
         AtomicInteger rank = new AtomicInteger(1);
+        String normalizedDistrict = normalizeDistrict(district);
 
         // 활성화된 흔적 개수 DB에서 가져오기
         List<TraceRepository.PlaceTraceCount> traceCounts = traceRepository.countActiveTracesByPlace();
@@ -116,7 +123,7 @@ public class PlaceService {
         return traceCounts.stream()
                 .map(count -> {
                     PlaceInfo placeInfo = placeInfosByKakaoPlaceId.get(count.getKakaoPlaceId());
-                    if (placeInfo == null) {
+                    if (placeInfo == null || !matchesDistrict(placeInfo, normalizedDistrict)) {
                         return null;
                     }
 
@@ -130,6 +137,18 @@ public class PlaceService {
                 .filter(response -> response != null)
                 .limit(normalizedLimit)
                 .toList();
+    }
+
+    private boolean matchesDistrict(PlaceInfo placeInfo, String district) {
+        if (!StringUtils.hasText(district)) {
+            return true;
+        }
+        return StringUtils.hasText(placeInfo.getAddress())
+                && placeInfo.getAddress().contains(district);
+    }
+
+    private String normalizeDistrict(String district) {
+        return StringUtils.hasText(district) ? district.trim() : "";
     }
 
     // kakaoPlaceID로 CSV 캐시에서 장소 하나를 찾는 메소드

@@ -4,6 +4,7 @@ CREATE TABLE IF NOT EXISTS users (
     password VARCHAR(255) NULL,
     nickname VARCHAR(255) NOT NULL,
     profile_image_url VARCHAR(1000) NULL,
+    birth_date VARCHAR(6) NULL,
     provider VARCHAR(30) NOT NULL,
     provider_id VARCHAR(100) NULL,
     created_at DATETIME(6) NULL,

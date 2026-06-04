@@ -30,8 +30,9 @@ public class PlaceController {
     // active 흔적 수가 많은 장소를 인기 장소 순위로 조회한다.
     @GetMapping("/popular")
     public List<PopularPlaceResponse> getPopularPlaces(
-            @RequestParam(defaultValue = "10") Integer limit
+            @RequestParam(defaultValue = "10") Integer limit,
+            @RequestParam(required = false) String district
     ) {
-        return placeService.getPopularPlaces(limit);
+        return placeService.getPopularPlaces(limit, district);
     }
 }

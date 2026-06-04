@@ -38,6 +38,11 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(e.getMessage());
     }
 
+    @ExceptionHandler(InvalidBirthDateException.class)
+    public ResponseEntity<String> handleInvalidBirthDate(InvalidBirthDateException e) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+    }
+
     @ExceptionHandler(KakaoLocalApiException.class)
     public ResponseEntity<String> handleKakaoLocalApi(KakaoLocalApiException e) {
         return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(e.getMessage());

@@ -34,6 +34,9 @@ public class UserSignupRequestDto {
     @Size(max = 1000, message = "profileImageUrl must be 1000 characters or less.")
     private String profileImageUrl;
 
+    @Size(max = 6, message = "birthDate must be 6 characters or less.")
+    private String birthDate;
+
     private MultipartFile profileUploadFile;
 
     private String createAt;
@@ -44,6 +47,7 @@ public class UserSignupRequestDto {
                 .password( password )
                 .nickname( nickname )
                 .profileImageUrl( profileImageUrl )
+                .birthDate( birthDate )
                 .provider( LOCAL )
                 .build();
     }

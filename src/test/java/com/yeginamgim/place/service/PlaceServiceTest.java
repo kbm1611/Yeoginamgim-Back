@@ -230,6 +230,48 @@ class PlaceServiceTest {
                 .containsExactly("cached-1", "cached-2");
     }
 
+    @Test
+    void popularPlacesFilterByDistrictWhenProvided() throws Exception {
+        PlaceService placeService = placeServiceWithCache("""
+                kakao_place_id,place_name,latitude,longitude,phone,address,kakao_map_url,group_name
+                gangnam-1,Gangnam One,37.4979,127.0276,02-0000-0000,서울 강남구 테헤란로 1,https://place.map.kakao.com/gangnam-1,cafe
+                seongdong-1,Seongdong One,37.5445,127.0557,02-1111-1111,서울 성동구 성수동,https://place.map.kakao.com/seongdong-1,culture
+                gangnam-2,Gangnam Two,37.5006,127.0265,02-2222-2222,서울 강남구 강남대로 2,https://place.map.kakao.com/gangnam-2,cafe
+                """);
+        when(traceRepository.countActiveTracesByPlace()).thenReturn(List.of(
+                placeTraceCount("seongdong-1", 10L),
+                placeTraceCount("gangnam-1", 9L),
+                placeTraceCount("gangnam-2", 7L)
+        ));
+        when(boardRepository.findByKakaoPlaceIdIn(anyCollection())).thenReturn(List.of());
+
+        List<PopularPlaceResponse> responses = placeService.getPopularPlaces(10, "강남구");
+
+        assertThat(responses).extracting(PopularPlaceResponse::getKakaoPlaceId)
+                .containsExactly("gangnam-1", "gangnam-2");
+        assertThat(responses).extracting(PopularPlaceResponse::getRank)
+                .containsExactly(1, 2);
+    }
+
+    @Test
+    void popularPlacesTreatBlankDistrictAsGlobalPopular() throws Exception {
+        PlaceService placeService = placeServiceWithCache("""
+                kakao_place_id,place_name,latitude,longitude,phone,address,kakao_map_url,group_name
+                gangnam-1,Gangnam One,37.4979,127.0276,02-0000-0000,서울 강남구 테헤란로 1,https://place.map.kakao.com/gangnam-1,cafe
+                seongdong-1,Seongdong One,37.5445,127.0557,02-1111-1111,서울 성동구 성수동,https://place.map.kakao.com/seongdong-1,culture
+                """);
+        when(traceRepository.countActiveTracesByPlace()).thenReturn(List.of(
+                placeTraceCount("seongdong-1", 10L),
+                placeTraceCount("gangnam-1", 9L)
+        ));
+        when(boardRepository.findByKakaoPlaceIdIn(anyCollection())).thenReturn(List.of());
+
+        List<PopularPlaceResponse> responses = placeService.getPopularPlaces(10, " ");
+
+        assertThat(responses).extracting(PopularPlaceResponse::getKakaoPlaceId)
+                .containsExactly("seongdong-1", "gangnam-1");
+    }
+
     private PlaceService placeServiceWithCache(String csv) throws Exception {
         Path cacheFile = tempDir.resolve("places-cache.csv");
         Files.writeString(cacheFile, csv);

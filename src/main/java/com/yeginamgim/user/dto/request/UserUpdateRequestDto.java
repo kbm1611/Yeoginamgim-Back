@@ -25,6 +25,9 @@ public class UserUpdateRequestDto {
     @Size(max = 1000, message = "profileImageUrl must be 1000 characters or less.")
     private String profileImageUrl;
 
+    @Size(max = 6, message = "birthDate must be 6 characters or less.")
+    private String birthDate;
+
     private MultipartFile profileUploadFile;
     private String updateAt;
 
@@ -33,6 +36,7 @@ public class UserUpdateRequestDto {
                 .email( email )
                 .nickname( nickname )
                 .profileImageUrl( profileImageUrl )
+                .birthDate( birthDate )
                 .build();
     }
 }
