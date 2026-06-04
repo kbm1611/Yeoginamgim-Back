@@ -1,129 +1,129 @@
-# 여기남김 - 백엔드
+﻿# 여긴남김 백엔드 README
 
-> 실제 장소 기반 보드에 사용자의 흔적을 남기고 조회하는 공간 방명록 서비스 백엔드
+Codex가 백엔드 작업의 뼈대를 빠르게 잡기 위한 구조 가이드입니다. 구현 판단은 항상 현재 소스 코드를 우선합니다.
 
----
+## 한눈에 보기
 
-## 개요
+- 런타임: Java 17, Spring Boot 4.0.3
+- 빌드: Gradle Wrapper
+- 주요 기술: Spring Web MVC, Spring Data JPA, Bean Validation, Lombok, JWT, MySQL
+- 애플리케이션 진입점: `src/main/java/com/yeginamgim/AppStart.java`
+- 기본 포트: `8080`
+- 기본 DB URL: `jdbc:mysql://localhost:3306/yeoginamgim_db`
+- 런타임 파일 위치: 실행 디렉터리 기준 `uploads/`
+- 장소 CSV 캐시: `../data/places-cache.csv`
 
-`YEOGINAMGIM-BACKEND`는 **여기남김** 프로젝트의 Spring Boot 백엔드입니다.
-
-사용자는 카카오 장소 검색으로 공간을 찾고, 해당 장소의 보드에 텍스트/이미지/스타일/위치 정보를 포함한 **흔적(trace)** 을 남길 수 있습니다. 백엔드는 회원가입/로그인, 장소 조회, 보드 조회/생성, 흔적 작성/조회/수정/삭제, 좋아요, 신고, 보관함 조회를 담당합니다.
-
-상세한 1차 기능 설명과 API 목록은 [docs/README_1차기능_back.md](docs/README_1차기능_back.md)를 참고하세요.
-
----
-
-## 기술 스택
-
-| 항목 | 내용 |
-|---|---|
-| 언어 | Java 17 |
-| 프레임워크 | Spring Boot 4.0.3 |
-| 웹 | Spring Web MVC |
-| 데이터 | Spring Data JPA |
-| 인증 | JWT, Kakao OAuth, Google OAuth |
-| DB | MySQL |
-| 빌드 도구 | Gradle Wrapper |
-
----
-
-## 실행 방법
-
-워크스페이스 루트 기준:
+## 실행과 검증
 
 ```powershell
 cd Yeoginamgim-Back
 .\gradlew.bat bootRun
 ```
 
-테스트와 빌드는 다음 명령어로 확인합니다.
-
 ```powershell
+cd Yeoginamgim-Back
 .\gradlew.bat test
 .\gradlew.bat build
 ```
 
----
-
 ## 설정 파일
 
-기본 설정은 `src/main/resources/application.properties`에 있습니다.
+- 공통 설정: `src/main/resources/application.properties`
+- 로컬 비밀 설정: `src/main/resources/application-secret.properties`
+- SQL 초기화: `src/main/resources/sql/schema.sql`, `src/main/resources/sql/data.sql`
 
-개인별 비밀 설정은 아래 파일을 직접 생성해 작성합니다.
+`application-secret.properties`에는 DB 계정, JWT secret, OAuth secret, Kakao REST API key처럼 공개하면 안 되는 값을 둡니다. 실제 secret은 README나 소스에 적지 않습니다.
+
+## 패키지 구조
 
 ```text
-src/main/resources/application-secret.properties
+src/main/java/com/yeginamgim/
+├─ archive/   # 내 흔적, 캘린더, 보드 아카이브, 즐겨찾기 장소
+├─ auth/      # 로컬 로그인, Kakao/Google OAuth, JWT
+├─ board/     # Kakao place id 기반 보드 조회와 생성
+├─ global/    # 공통 설정, 예외 처리, 파일 업로드, BaseTime
+├─ place/     # Kakao Local API, 주변/검색/인기 장소, CSV 캐시
+├─ report/    # 흔적 신고
+├─ trace/     # 흔적, 흔적 요소, 이미지 업로드, 좋아요
+└─ user/      # 회원가입, 내 정보, 프로필 수정, 탈퇴
 ```
 
-여기에는 DB 계정, JWT Secret, Kakao/Google OAuth Secret, Kakao REST API Key처럼 외부에 공개되면 안 되는 값을 넣습니다. 실제 secret 값은 README나 코드에 작성하지 않습니다.
+일반적인 계층은 `controller -> service -> repository -> entity`이며, API 입출력은 `dto`를 통해 다룹니다. 컨트롤러에는 HTTP 요청/응답과 검증 진입점만 두고, 권한 확인과 비즈니스 규칙은 서비스에 둡니다.
 
----
+## 도메인별 주요 파일
 
-## 폴더 구조
+- `auth/controller/AuthController.java`: 로그인, OAuth 시작/콜백, 로그아웃
+- `auth/jwt/JWTService.java`: JWT 생성과 검증
+- `user/controller/UserController.java`: 회원가입, 내 정보, 수정, 탈퇴
+- `place/controller/PlaceController.java`: 주변/검색/인기 장소 API
+- `place/repository/PlaceCsvStore.java`: 장소 캐시 CSV 읽기/쓰기
+- `board/controller/BoardController.java`: 장소별 보드 조회, 보드 상세, 보드 생성
+- `trace/controller/TraceController.java`: 보드 흔적 목록/영역 조회, 흔적 CRUD, 이미지, 좋아요
+- `archive/controller/ArchiveController.java`: 내 흔적, 아카이브, 즐겨찾기 장소
+- `report/controller/ReportController.java`: 흔적 신고
+- `global/exception/GlobalExceptionHandler.java`: 공통 예외 응답
+- `global/file/FileService.java`, `FileWebConfig.java`: 업로드 저장과 정적 제공
 
-```text
-Yeoginamgim-Back/
-├─ src/main/java/com/yeginamgim/
-│  ├─ archive/        # 내 흔적과 아카이브 조회
-│  ├─ auth/           # 로그인, JWT, OAuth
-│  ├─ board/          # 장소별 보드 조회/생성
-│  ├─ global/         # 공통 설정, 예외, 파일 처리
-│  ├─ place/          # 장소 조회, 카카오 Local API, CSV 캐시
-│  ├─ report/         # 흔적 신고
-│  ├─ trace/          # 흔적, 흔적 요소, 이미지, 좋아요
-│  └─ user/           # 회원가입, 내 정보 조회/수정
-├─ src/main/resources/
-│  ├─ application.properties
-│  └─ sql/
-├─ docs/
-│  └─ README_1차기능_back.md
-├─ build.gradle
-└─ gradlew.bat
-```
-
----
-
-## 주요 API
+## 주요 API 표면
 
 ```text
-POST  /api/user/signup
-GET   /api/user/myinfo
-PATCH /api/user/update
+POST   /api/auth/login
+GET    /api/auth/oauth/kakao
+GET    /api/auth/oauth/kakao/callback
+GET    /api/auth/oauth/google
+GET    /api/auth/oauth/google/callback
+GET    /api/auth/logout
 
-POST /api/auth/login
-GET  /api/auth/oauth/kakao
-GET  /api/auth/oauth/google
-GET  /api/auth/logout
+POST   /api/user/signup
+GET    /api/user/myinfo
+PATCH  /api/user/update
+DELETE /api/user/me
 
-GET  /api/places/nearby
-GET  /api/places/popular
+GET    /api/places/nearby
+GET    /api/places/search
+GET    /api/places/popular
 
-GET  /api/places/{kakaoPlaceId}/board
-GET  /api/boards/{boardId}
-POST /api/boards
+GET    /api/places/{kakaoPlaceId}/board
+GET    /api/boards/{boardId}
+POST   /api/boards
 
+GET    /api/traces/recent
 GET    /api/boards/{boardId}/traces
+GET    /api/boards/{boardId}/traces/area
 POST   /api/boards/{boardId}/traces
 GET    /api/traces/{traceId}
+POST   /api/traces/images
 PATCH  /api/traces/{traceId}
 DELETE /api/traces/{traceId}
 POST   /api/traces/{traceId}/likes
 DELETE /api/traces/{traceId}/likes
 POST   /api/traces/{traceId}/reports
 
-GET /api/me/traces
-GET /api/me/archive/calendar
-GET /api/me/archive/boards
-GET /api/me/received-likes
+GET    /api/me/traces
+GET    /api/me/traces/{traceId}
+GET    /api/me/archive/calendar
+GET    /api/me/archive/boards
+GET    /api/me/received-likes
+GET    /api/me/archive/favorite-places
+POST   /api/me/archive/favorite-places/{kakaoPlaceId}
+DELETE /api/me/archive/favorite-places/{kakaoPlaceId}
 ```
 
----
+## 테스트 구조
 
-## 개발 기준
+테스트는 `src/test/java/com/yeginamgim/` 아래에 도메인별로 있습니다.
 
-- Controller에는 HTTP 요청/응답과 검증 진입점만 둡니다.
-- 비즈니스 로직은 Service에서 처리합니다.
-- DB 접근은 Repository에서 처리합니다.
-- Entity를 API 응답으로 직접 반환하지 않고 DTO를 사용합니다.
-- 업로드/캐시 데이터는 소스 폴더가 아닌 `uploads/` 또는 `data/`에 둡니다.
+- controller 테스트: `auth`, `place`, `trace`, `user`
+- service 테스트: `auth`, `board`, `place`, `user`
+- util/repository 테스트: `place/util`, `place/repository`
+- 공통 예외 테스트: `global/exception`
+
+## 작업 원칙
+
+- 엔티티를 API 응답으로 직접 반환하지 않습니다.
+- DB 컬럼명이나 DTO shape는 프론트 사용처와 테스트를 확인한 뒤 바꿉니다.
+- JWT/OAuth/security 변경 전에는 `auth` 코드와 테스트를 먼저 읽습니다.
+- 업로드 파일은 소스 폴더가 아니라 실행 디렉터리의 `uploads/` 아래에 둡니다.
+- 새 secret, token, password, API key를 커밋 대상 파일에 넣지 않습니다.
+- `System.out.println`이나 임시 로그는 handoff 전에 제거합니다.
+
