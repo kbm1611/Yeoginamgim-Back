@@ -3,6 +3,7 @@ package com.yeginamgim.place.service;
 import com.yeginamgim.board.dto.PlaceInfo;
 import com.yeginamgim.board.entity.BoardEntity;
 import com.yeginamgim.board.repository.BoardRepository;
+import com.yeginamgim.global.exception.InvalidPlaceRequestException;
 import com.yeginamgim.global.exception.PlaceNotFoundException;
 import com.yeginamgim.place.dto.request.PlaceSearchRequest;
 import com.yeginamgim.place.dto.response.PlaceResponse;
@@ -43,7 +44,6 @@ public class PlaceService {
         int limit = placeSearchRequestValidator.normalizeLimit(safeRequest.getLimit());
         int radius = placeSearchRequestValidator.normalizeRadius(safeRequest.getRadius());
 
-        // 캐시에서 먼저 찾기
         List<PlaceInfo> cachedPlaces = placeCsvStore.findNearby(
                 safeRequest.getLatitude(),
                 safeRequest.getLongitude(),
@@ -51,25 +51,18 @@ public class PlaceService {
                 radius
         );
 
-        // 캐시에 찾은 장소들은 응답 DTO로 바꾼 뒤 정렬 최대 limit 개수만
-        List<PlaceResponse> cachedResponses = toPlaceResponses(cachedPlaces).stream()
-                .sorted((left, right) -> compareCachedResponses(
+        Map<String, PlaceResponse> responsesByKakaoPlaceId = new LinkedHashMap<>();
+        toPlaceResponses(cachedPlaces).stream()
+                .sorted((left, right) -> compareByDistance(
                         left,
                         right,
                         safeRequest.getLatitude(),
                         safeRequest.getLongitude()
                 ))
                 .limit(limit)
-                .toList();
+                .forEach(response -> responsesByKakaoPlaceId.putIfAbsent(response.getKakaoPlaceId(), response));
 
-        // 연결된 해시맵에 키를 카카오장소ID로 담기
-        Map<String, PlaceResponse> responsesByKakaoPlaceId = new LinkedHashMap<>();
-        cachedResponses.forEach(response -> responsesByKakaoPlaceId.put(response.getKakaoPlaceId(), response));
-
-        // 15개보다 적을 경우 카카오API 호출
         if (responsesByKakaoPlaceId.size() < limit) {
-
-            // 카카오API에 보낼 요청 만들기
             PlaceSearchRequest kakaoRequest = PlaceSearchRequest.builder()
                     .latitude(safeRequest.getLatitude())
                     .longitude(safeRequest.getLongitude())
@@ -79,13 +72,18 @@ public class PlaceService {
                     .page(safeRequest.getPage())
                     .build();
 
-            // 응답을 map에 추가
             toPlaceResponses(kakaoLocalService.searchByCategory(kakaoRequest)).stream()
                     .forEach(response -> responsesByKakaoPlaceId.putIfAbsent(response.getKakaoPlaceId(), response));
         }
 
         // 리스트로 반환
         return responsesByKakaoPlaceId.values().stream()
+                .sorted((left, right) -> compareByDistance(
+                        left,
+                        right,
+                        safeRequest.getLatitude(),
+                        safeRequest.getLongitude()
+                ))
                 .limit(limit)
                 .toList();
     }
@@ -93,13 +91,27 @@ public class PlaceService {
     // 인기 장소 목록 조회
     @Transactional(readOnly = true)
     public List<PopularPlaceResponse> getPopularPlaces(Integer limit) {
-        return getPopularPlaces(limit, null);
+        return getPopularPlaces(limit, null, null, null, null);
     }
 
     // 인기 장소 목록 조회
     @Transactional(readOnly = true)
     public List<PopularPlaceResponse> getPopularPlaces(Integer limit, String district) {
+        return getPopularPlaces(limit, district, null, null, null);
+    }
+
+    // 인기 장소 목록 조회
+    @Transactional(readOnly = true)
+    public List<PopularPlaceResponse> getPopularPlaces(
+            Integer limit,
+            String district,
+            Double latitude,
+            Double longitude,
+            Integer radius
+    ) {
         int normalizedLimit = placeSearchRequestValidator.normalizeLimit(limit);
+        boolean locationFiltered = hasLocationFilter(latitude, longitude);
+        int normalizedRadius = placeSearchRequestValidator.normalizeRadius(radius);
         // 인기 순위를 붙이 위한 카운터. 람다식 안에서 쓰기 위한 객체
         AtomicInteger rank = new AtomicInteger(1);
         String normalizedDistrict = normalizeDistrict(district);
@@ -123,7 +135,9 @@ public class PlaceService {
         return traceCounts.stream()
                 .map(count -> {
                     PlaceInfo placeInfo = placeInfosByKakaoPlaceId.get(count.getKakaoPlaceId());
-                    if (placeInfo == null || !matchesDistrict(placeInfo, normalizedDistrict)) {
+                    if (placeInfo == null
+                            || !matchesDistrict(placeInfo, normalizedDistrict)
+                            || !matchesLocation(placeInfo, latitude, longitude, normalizedRadius, locationFiltered)) {
                         return null;
                     }
 
@@ -137,6 +151,45 @@ public class PlaceService {
                 .filter(response -> response != null)
                 .limit(normalizedLimit)
                 .toList();
+    }
+
+    private boolean hasLocationFilter(Double latitude, Double longitude) {
+        if (latitude == null && longitude == null) {
+            return false;
+        }
+
+        if (!isValidLatitude(latitude) || !isValidLongitude(longitude)) {
+            throw new InvalidPlaceRequestException("위도와 경도 범위가 올바르지 않습니다.");
+        }
+
+        return true;
+    }
+
+    private boolean matchesLocation(
+            PlaceInfo placeInfo,
+            Double latitude,
+            Double longitude,
+            int radius,
+            boolean locationFiltered
+    ) {
+        if (!locationFiltered) {
+            return true;
+        }
+
+        return GeoUtils.distanceInMeters(
+                latitude,
+                longitude,
+                placeInfo.getLatitude(),
+                placeInfo.getLongitude()
+        ) <= radius;
+    }
+
+    private boolean isValidLatitude(Double latitude) {
+        return latitude != null && !latitude.isNaN() && !latitude.isInfinite() && latitude >= -90 && latitude <= 90;
+    }
+
+    private boolean isValidLongitude(Double longitude) {
+        return longitude != null && !longitude.isNaN() && !longitude.isInfinite() && longitude >= -180 && longitude <= 180;
     }
 
     private boolean matchesDistrict(PlaceInfo placeInfo, String district) {
@@ -226,26 +279,25 @@ public class PlaceService {
                 ));
     }
 
-    // 캐시에서 가져온 장소들을 어떤 순서로 보여줄지 정하는 비교 함수
-    private int compareCachedResponses(PlaceResponse left, PlaceResponse right, Double latitude, Double longitude) {
-        int boardCompare = Boolean.compare(right.getBoardId() != null, left.getBoardId() != null);
-        if (boardCompare != 0) {
-            return boardCompare;
-        }
-
-        int traceCompare = Long.compare(defaultLong(right.getTraceCount()), defaultLong(left.getTraceCount()));
-        if (traceCompare != 0) {
-            return traceCompare;
-        }
-
-        return Double.compare(
+    // 기준 좌표와 가까운 장소가 먼저 오도록 정렬한다.
+    private int compareByDistance(PlaceResponse left, PlaceResponse right, Double latitude, Double longitude) {
+        int distanceCompare = Double.compare(
                 GeoUtils.distanceInMeters(latitude, longitude, left.getLatitude(), left.getLongitude()),
                 GeoUtils.distanceInMeters(latitude, longitude, right.getLatitude(), right.getLongitude())
         );
+        if (distanceCompare != 0) {
+            return distanceCompare;
+        }
+
+        return defaultString(left.getPlaceName()).compareTo(defaultString(right.getPlaceName()));
     }
 
     // Long값이 null이면 0으로 바꿔주는 메소드
     private long defaultLong(Long value) {
         return value == null ? 0 : value;
+    }
+
+    private String defaultString(String value) {
+        return value == null ? "" : value;
     }
 }

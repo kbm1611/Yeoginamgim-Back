@@ -100,7 +100,7 @@ class PlaceServiceTest {
     }
 
     @Test
-    void nearbyReturnsBoardPlacesFromCacheBeforeCallingKakao() throws Exception {
+    void nearbyReturnsCachedPlacesWithoutCallingKakaoWhenCacheIsEnough() throws Exception {
         PlaceService placeService = placeServiceWithCache("""
                 kakao_place_id,place_name,latitude,longitude,phone,address,kakao_map_url,group_name
                 cache-board,Cache Board Cafe,37.4979,127.0276,02-0000-0000,Seoul,https://place.map.kakao.com/cache-board,cafe
@@ -194,6 +194,61 @@ class PlaceServiceTest {
     }
 
     @Test
+    void nearbyCapsKakaoLookupToOneKilometerAndFifteenResults() throws Exception {
+        PlaceService placeService = placeServiceWithCache("""
+                kakao_place_id,place_name,latitude,longitude,phone,address,kakao_map_url,group_name
+                """);
+        when(kakaoLocalService.searchByCategory(org.mockito.ArgumentMatchers.any())).thenReturn(List.of());
+
+        placeService.searchNearbyPlaces(PlaceSearchRequest.builder()
+                .latitude(37.4979)
+                .longitude(127.0276)
+                .category("cafe")
+                .radius(20000)
+                .limit(20)
+                .build());
+
+        verify(kakaoLocalService).searchByCategory(argThat(request ->
+                request.getRadius() == 1000 && request.getLimit() == 15
+        ));
+    }
+
+    @Test
+    void nearbyKeepsDistanceOrderAcrossCacheAndKakaoResults() throws Exception {
+        PlaceService placeService = placeServiceWithCache("""
+                kakao_place_id,place_name,latitude,longitude,phone,address,kakao_map_url,group_name
+                cache-far,Cache Far Cafe,37.5020,127.0276,02-0000-0000,Seoul,https://place.map.kakao.com/cache-far,cafe
+                """);
+        when(boardRepository.findByKakaoPlaceIdIn(anyCollection())).thenReturn(List.of(BoardEntity.builder()
+                .boardId(7L)
+                .kakaoPlaceId("cache-far")
+                .createdAt(LocalDateTime.now())
+                .build()));
+        when(traceRepository.countActiveByKakaoPlaceIds(anyCollection())).thenReturn(List.of(
+                placeTraceCount("cache-far", 99L)
+        ));
+        when(kakaoLocalService.searchByCategory(org.mockito.ArgumentMatchers.any())).thenReturn(List.of(
+                PlaceInfo.builder()
+                        .kakaoPlaceId("kakao-near")
+                        .placeName("Kakao Near Cafe")
+                        .latitude(37.4979)
+                        .longitude(127.0276)
+                        .groupName("cafe")
+                        .build()
+        ));
+
+        List<PlaceResponse> responses = placeService.searchNearbyPlaces(PlaceSearchRequest.builder()
+                .latitude(37.4979)
+                .longitude(127.0276)
+                .category("cafe")
+                .limit(2)
+                .build());
+
+        assertThat(responses).extracting(PlaceResponse::getKakaoPlaceId)
+                .containsExactly("kakao-near", "cache-far");
+    }
+
+    @Test
     void popularPlacesUseCacheOnly() throws Exception {
         PlaceService placeService = placeServiceWithCache("""
                 kakao_place_id,place_name,latitude,longitude,phone,address,kakao_map_url,group_name
@@ -249,6 +304,35 @@ class PlaceServiceTest {
 
         assertThat(responses).extracting(PopularPlaceResponse::getKakaoPlaceId)
                 .containsExactly("gangnam-1", "gangnam-2");
+        assertThat(responses).extracting(PopularPlaceResponse::getRank)
+                .containsExactly(1, 2);
+    }
+
+    @Test
+    void popularPlacesFilterByCurrentLocationRadiusWhenProvided() throws Exception {
+        PlaceService placeService = placeServiceWithCache("""
+                kakao_place_id,place_name,latitude,longitude,phone,address,kakao_map_url,group_name
+                near-1,Near One,37.5447,127.0559,02-0000-0000,서울 성동구 성수동,https://place.map.kakao.com/near-1,cafe
+                near-2,Near Two,37.5450,127.0562,02-1111-1111,서울 성동구 성수동,https://place.map.kakao.com/near-2,culture
+                far-1,Far One,37.4979,127.0276,02-2222-2222,서울 강남구 역삼동,https://place.map.kakao.com/far-1,cafe
+                """);
+        when(traceRepository.countActiveTracesByPlace()).thenReturn(List.of(
+                placeTraceCount("far-1", 50L),
+                placeTraceCount("near-1", 10L),
+                placeTraceCount("near-2", 7L)
+        ));
+        when(boardRepository.findByKakaoPlaceIdIn(anyCollection())).thenReturn(List.of());
+
+        List<PopularPlaceResponse> responses = placeService.getPopularPlaces(
+                10,
+                null,
+                37.5447,
+                127.0559,
+                500
+        );
+
+        assertThat(responses).extracting(PopularPlaceResponse::getKakaoPlaceId)
+                .containsExactly("near-1", "near-2");
         assertThat(responses).extracting(PopularPlaceResponse::getRank)
                 .containsExactly(1, 2);
     }
