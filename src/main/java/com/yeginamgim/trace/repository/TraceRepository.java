@@ -192,6 +192,14 @@ public interface TraceRepository extends JpaRepository<Trace, Long> {
     long countActiveByKakaoPlaceId(@Param("kakaoPlaceId") String kakaoPlaceId);
 
     @Query("""
+            select count(trace)
+            from Trace trace
+            where trace.board.boardId = :boardId
+              and trace.traceStatus = com.yeginamgim.trace.enums.TraceStatus.ACTIVE
+            """)
+    long countActiveByBoardId(@Param("boardId") Long boardId);
+
+    @Query("""
             select trace.board.kakaoPlaceId as kakaoPlaceId,
                    count(trace) as traceCount
             from Trace trace
