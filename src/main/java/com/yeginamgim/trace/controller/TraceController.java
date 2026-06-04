@@ -1,5 +1,6 @@
 package com.yeginamgim.trace.controller;
 
+import com.yeginamgim.trace.dto.RecentTraceResponse;
 import com.yeginamgim.trace.dto.TraceCreateRequest;
 import com.yeginamgim.trace.dto.TraceImageUploadResponse;
 import com.yeginamgim.trace.dto.TraceLikeResponse;
@@ -24,6 +25,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 // [3] 공간 보드 위 흔적 기능
 @RestController
@@ -32,6 +34,16 @@ import java.time.LocalDateTime;
 public class TraceController {
 
     private final TraceService traceService;
+
+    @GetMapping("/traces/recent")
+    public List<RecentTraceResponse> getRecentTraces(
+            @RequestParam(defaultValue = "today") String period,
+            @RequestParam(required = false) String district,
+            @RequestParam(defaultValue = "5") Integer limit,
+            @RequestHeader(value = "Authorization", required = false) String authorization
+    ) {
+        return traceService.getRecentTraces(period, district, limit, authorization);
+    }
 
     // board_id 기준 흔적 목록 조회
     @GetMapping("/boards/{boardId}/traces")
