@@ -7,6 +7,7 @@ import com.yeginamgim.board.entity.BoardEntity;
 import com.yeginamgim.board.repository.BoardRepository;
 import com.yeginamgim.place.repository.PlaceCsvStore;
 import com.yeginamgim.place.service.PlaceService;
+import com.yeginamgim.trace.repository.TraceRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -20,6 +21,7 @@ public class BoardService {
     private final BoardRepository boardRepository;
     private final PlaceService placeService;
     private final PlaceCsvStore placeCsvStore;
+    private final TraceRepository traceRepository;
 
     public BoardDetailResponse getBoardDetail(Long boardId) {
         BoardEntity board = boardRepository.findById(boardId)
@@ -58,8 +60,9 @@ public class BoardService {
 
     private BoardDetailResponse toBoardDetailResponse(BoardEntity board) {
         PlaceInfo place = findPlaceByKakaoPlaceId(board.getKakaoPlaceId());
+        long traceCount = traceRepository.countActiveByBoardId(board.getBoardId());
 
-        return BoardDetailResponse.from(board, place);
+        return BoardDetailResponse.from(board, place, traceCount);
     }
 
     private PlaceInfo findPlaceByKakaoPlaceId(String kakaoPlaceId) {

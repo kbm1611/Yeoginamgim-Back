@@ -1,10 +1,13 @@
 package com.yeginamgim.board.service;
 
 import com.yeginamgim.board.dto.BoardCreateRequest;
+import com.yeginamgim.board.dto.BoardDetailResponse;
+import com.yeginamgim.board.dto.PlaceInfo;
 import com.yeginamgim.board.entity.BoardEntity;
 import com.yeginamgim.board.repository.BoardRepository;
 import com.yeginamgim.place.repository.PlaceCsvStore;
 import com.yeginamgim.place.service.PlaceService;
+import com.yeginamgim.trace.repository.TraceRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.springframework.web.server.ResponseStatusException;
@@ -26,6 +29,38 @@ class BoardServiceTest {
     Path tempDir;
 
     private final BoardRepository boardRepository = mock(BoardRepository.class);
+    private final TraceRepository traceRepository = mock(TraceRepository.class);
+
+    @Test
+    void boardDetailIncludesActiveTraceCount() throws Exception {
+        Path cacheFile = emptyCacheFile();
+        PlaceService placeService = mock(PlaceService.class);
+        BoardEntity board = BoardEntity.builder()
+                .boardId(11L)
+                .kakaoPlaceId("new-place")
+                .createdAt(LocalDateTime.now())
+                .build();
+        when(boardRepository.findById(11L)).thenReturn(Optional.of(board));
+        when(placeService.findPlaceInfoByKakaoPlaceId("new-place")).thenReturn(PlaceInfo.builder()
+                .kakaoPlaceId("new-place")
+                .placeName("New Cafe")
+                .latitude(37.4979)
+                .longitude(127.0276)
+                .groupName("cafe")
+                .build());
+        when(traceRepository.countActiveByBoardId(11L)).thenReturn(12L);
+
+        BoardService boardService = new BoardService(
+                boardRepository,
+                placeService,
+                new PlaceCsvStore(cacheFile.toString()),
+                traceRepository
+        );
+
+        BoardDetailResponse response = boardService.getBoardDetail(11L);
+
+        assertThat(response.getTraceCount()).isEqualTo(12L);
+    }
 
     @Test
     void createsBoardAndCachesPlaceSnapshotWhenPlaceIsNotCached() throws Exception {
@@ -41,7 +76,12 @@ class BoardServiceTest {
         when(placeService.findPlaceInfoByKakaoPlaceId("new-place")).thenAnswer(invocation ->
                 new PlaceCsvStore(cacheFile.toString()).findByKakaoPlaceId("new-place").orElseThrow());
 
-        BoardService boardService = new BoardService(boardRepository, placeService, new PlaceCsvStore(cacheFile.toString()));
+        BoardService boardService = new BoardService(
+                boardRepository,
+                placeService,
+                new PlaceCsvStore(cacheFile.toString()),
+                traceRepository
+        );
 
         boardService.createBoard(BoardCreateRequest.builder()
                 .kakaoPlaceId("new-place")
@@ -62,7 +102,12 @@ class BoardServiceTest {
         Path cacheFile = emptyCacheFile();
         PlaceService placeService = mock(PlaceService.class);
         when(placeService.findPlaceInfoByKakaoPlaceId("missing")).thenThrow(ResponseStatusException.class);
-        BoardService boardService = new BoardService(boardRepository, placeService, new PlaceCsvStore(cacheFile.toString()));
+        BoardService boardService = new BoardService(
+                boardRepository,
+                placeService,
+                new PlaceCsvStore(cacheFile.toString()),
+                traceRepository
+        );
 
         assertThatThrownBy(() -> boardService.createBoard(BoardCreateRequest.builder()
                 .kakaoPlaceId("missing")
@@ -88,7 +133,12 @@ class BoardServiceTest {
         when(placeService.findPlaceInfoByKakaoPlaceId("new-id")).thenAnswer(invocation ->
                 new PlaceCsvStore(cacheFile.toString()).findByKakaoPlaceId("new-id").orElseThrow());
 
-        BoardService boardService = new BoardService(boardRepository, placeService, new PlaceCsvStore(cacheFile.toString()));
+        BoardService boardService = new BoardService(
+                boardRepository,
+                placeService,
+                new PlaceCsvStore(cacheFile.toString()),
+                traceRepository
+        );
 
         boardService.createBoard(BoardCreateRequest.builder()
                 .kakaoPlaceId("new-id")
