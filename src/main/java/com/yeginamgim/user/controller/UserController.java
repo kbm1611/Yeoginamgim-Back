@@ -45,6 +45,7 @@ public class UserController {
         return ResponseEntity.ok(userSvc.updateUserInfo(email, userUpdDto));
     }
 
+    // 회원탈퇴
     @DeleteMapping("/me")
     public ResponseEntity<?> withdraw(
             @RequestHeader(value = "Authorization", required = false) String token,

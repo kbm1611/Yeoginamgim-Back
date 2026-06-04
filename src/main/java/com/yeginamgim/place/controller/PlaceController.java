@@ -27,12 +27,13 @@ public class PlaceController {
         return placeService.searchNearbyPlaces(request);
     }
 
-    // active 흔적 수가 많은 장소를 인기 장소 순위로 조회한다.
+    // 검색한 장소 조회
     @GetMapping("/search")
     public List<PlaceResponse> searchPlaces(@ModelAttribute PlaceSearchRequest request) {
         return placeService.searchPlacesByKeyword(request);
     }
 
+    // active 흔적 수가 많은 장소를 인기 장소 순위로 조회한다.
     @GetMapping("/popular")
     public List<PopularPlaceResponse> getPopularPlaces(
             @RequestParam(defaultValue = "10") Integer limit,
