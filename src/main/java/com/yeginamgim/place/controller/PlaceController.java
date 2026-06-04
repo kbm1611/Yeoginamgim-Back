@@ -31,8 +31,11 @@ public class PlaceController {
     @GetMapping("/popular")
     public List<PopularPlaceResponse> getPopularPlaces(
             @RequestParam(defaultValue = "10") Integer limit,
-            @RequestParam(required = false) String district
+            @RequestParam(required = false) String district,
+            @RequestParam(required = false) Double latitude,
+            @RequestParam(required = false) Double longitude,
+            @RequestParam(required = false) Integer radius
     ) {
-        return placeService.getPopularPlaces(limit, district);
+        return placeService.getPopularPlaces(limit, district, latitude, longitude, radius);
     }
 }
