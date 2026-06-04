@@ -11,6 +11,7 @@ public class PlaceSearchRequestValidator {
     private static final int DEFAULT_LIMIT = 15;
     private static final int MAX_LIMIT = 15;
     private static final int DEFAULT_RADIUS = 1000;
+    private static final int DEFAULT_KEYWORD_RADIUS = 2000;
     private static final int MAX_RADIUS = 20000;
 
     public PlaceSearchRequest validateNearby(PlaceSearchRequest request) {
@@ -53,10 +54,16 @@ public class PlaceSearchRequestValidator {
         }
 
         request.setQuery(request.getQuery().trim());
+        request.setCategory(null);
+
+        if (isValidLatitude(request.getLatitude()) && isValidLongitude(request.getLongitude())) {
+            request.setRadius(normalizeKeywordRadius(request.getRadius()));
+            return request;
+        }
+
         request.setLatitude(null);
         request.setLongitude(null);
         request.setRadius(null);
-        request.setCategory(null);
 
         return request;
     }
@@ -80,6 +87,14 @@ public class PlaceSearchRequestValidator {
         }
 
         return Math.min(radius, DEFAULT_RADIUS);
+    }
+
+    public int normalizeKeywordRadius(Integer radius) {
+        if (radius == null || radius <= 0) {
+            return DEFAULT_KEYWORD_RADIUS;
+        }
+
+        return Math.min(radius, MAX_RADIUS);
     }
 
     private boolean isValidLatitude(Double latitude) {

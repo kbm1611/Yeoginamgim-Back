@@ -12,12 +12,14 @@ import com.yeginamgim.place.util.PlaceSearchRequestValidator;
 import com.yeginamgim.trace.repository.TraceRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.mockito.ArgumentCaptor;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
@@ -25,6 +27,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -218,10 +221,6 @@ class PlaceServiceTest {
 
         List<PlaceResponse> responses = placeService.searchPlacesByKeyword(PlaceSearchRequest.builder()
                 .query("coffee")
-                .latitude(37.5447)
-                .longitude(127.0559)
-                .category("cafe")
-                .radius(20000)
                 .limit(20)
                 .build());
 
@@ -238,6 +237,88 @@ class PlaceServiceTest {
                         && request.getLimit() == 15
         ));
         verify(kakaoLocalService, never()).searchByCategory(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void keywordSearchPrioritizesLocationResultsAndComplementsWithGlobalResults() throws Exception {
+        PlaceService placeService = placeServiceWithCache("""
+                kakao_place_id,place_name,latitude,longitude,phone,address,kakao_map_url,group_name
+                """);
+        when(kakaoLocalService.searchByKeyword(any())).thenAnswer(invocation -> {
+            PlaceSearchRequest searchRequest = invocation.getArgument(0);
+            if (searchRequest.getLatitude() != null) {
+                return List.of(
+                        PlaceInfo.builder()
+                                .kakaoPlaceId("near-first")
+                                .placeName("Near First Coffee")
+                                .latitude(37.5447)
+                                .longitude(127.0559)
+                                .groupName("cafe")
+                                .build(),
+                        PlaceInfo.builder()
+                                .kakaoPlaceId("duplicate")
+                                .placeName("Nearby Duplicate Coffee")
+                                .latitude(37.5448)
+                                .longitude(127.0560)
+                                .groupName("cafe")
+                                .build()
+                );
+            }
+
+            return List.of(
+                    PlaceInfo.builder()
+                            .kakaoPlaceId("duplicate")
+                            .placeName("Global Duplicate Coffee")
+                            .latitude(37.6000)
+                            .longitude(127.1000)
+                            .groupName("cafe")
+                            .build(),
+                    PlaceInfo.builder()
+                            .kakaoPlaceId("global-first")
+                            .placeName("Global First Coffee")
+                            .latitude(37.6100)
+                            .longitude(127.1100)
+                            .groupName("cafe")
+                            .build(),
+                    PlaceInfo.builder()
+                            .kakaoPlaceId("global-over-limit")
+                            .placeName("Global Over Limit Coffee")
+                            .latitude(37.6200)
+                            .longitude(127.1200)
+                            .groupName("cafe")
+                            .build()
+            );
+        });
+        when(boardRepository.findByKakaoPlaceIdIn(anyCollection())).thenReturn(List.of());
+        when(traceRepository.countActiveByKakaoPlaceIds(anyCollection())).thenReturn(List.of());
+
+        List<PlaceResponse> responses = placeService.searchPlacesByKeyword(PlaceSearchRequest.builder()
+                .query("  coffee  ")
+                .latitude(37.5447)
+                .longitude(127.0559)
+                .page(2)
+                .limit(3)
+                .build());
+
+        assertThat(responses).extracting(PlaceResponse::getKakaoPlaceId)
+                .containsExactly("near-first", "duplicate", "global-first");
+        assertThat(responses.get(1).getPlaceName()).isEqualTo("Nearby Duplicate Coffee");
+
+        ArgumentCaptor<PlaceSearchRequest> requestCaptor = ArgumentCaptor.forClass(PlaceSearchRequest.class);
+        verify(kakaoLocalService, times(2)).searchByKeyword(requestCaptor.capture());
+        List<PlaceSearchRequest> requests = requestCaptor.getAllValues();
+        assertThat(requests.get(0).getQuery()).isEqualTo("coffee");
+        assertThat(requests.get(0).getLatitude()).isEqualTo(37.5447);
+        assertThat(requests.get(0).getLongitude()).isEqualTo(127.0559);
+        assertThat(requests.get(0).getRadius()).isEqualTo(2000);
+        assertThat(requests.get(0).getPage()).isEqualTo(2);
+        assertThat(requests.get(0).getLimit()).isEqualTo(3);
+        assertThat(requests.get(1).getQuery()).isEqualTo("coffee");
+        assertThat(requests.get(1).getLatitude()).isNull();
+        assertThat(requests.get(1).getLongitude()).isNull();
+        assertThat(requests.get(1).getRadius()).isNull();
+        assertThat(requests.get(1).getPage()).isEqualTo(2);
+        assertThat(requests.get(1).getLimit()).isEqualTo(3);
     }
 
     @Test

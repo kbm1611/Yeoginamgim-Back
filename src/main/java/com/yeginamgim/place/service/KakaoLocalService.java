@@ -20,6 +20,8 @@ public class KakaoLocalService {
 
     private static final String KAKAO_LOCAL_BASE_URL = "https://dapi.kakao.com";
     private static final int DEFAULT_RADIUS = 1000;
+    private static final int DEFAULT_KEYWORD_RADIUS = 2000;
+    private static final int MAX_RADIUS = 20000;
     private static final int DEFAULT_SIZE = 15;
     private final RestClient restClient;
     private final String restApiKey;
@@ -131,6 +133,13 @@ public class KakaoLocalService {
                 .queryParam("size", defaultLimit(request.getLimit()))
                 .queryParam("sort", "accuracy");
 
+        if (hasValidLocation(request)) {
+            builder
+                    .queryParam("y", request.getLatitude())
+                    .queryParam("x", request.getLongitude())
+                    .queryParam("radius", defaultKeywordRadius(request.getRadius()));
+        }
+
         return builder.build();
     }
 
@@ -180,6 +189,14 @@ public class KakaoLocalService {
         return Math.min(radius, DEFAULT_RADIUS);
     }
 
+    private int defaultKeywordRadius(Integer radius) {
+        if (radius == null || radius <= 0) {
+            return DEFAULT_KEYWORD_RADIUS;
+        }
+
+        return Math.min(radius, MAX_RADIUS);
+    }
+
     // 요청 페이지가 없거나 잘못된 경우 첫 페이지를 사용한다.
     private int defaultPage(Integer page) {
         return page == null || page <= 0 ? 1 : page;
@@ -204,6 +221,18 @@ public class KakaoLocalService {
         } catch (NumberFormatException exception) {
             return null;
         }
+    }
+
+    private boolean hasValidLocation(PlaceSearchRequest request) {
+        return isValidLatitude(request.getLatitude()) && isValidLongitude(request.getLongitude());
+    }
+
+    private boolean isValidLatitude(Double latitude) {
+        return latitude != null && !latitude.isNaN() && !latitude.isInfinite() && latitude >= -90 && latitude <= 90;
+    }
+
+    private boolean isValidLongitude(Double longitude) {
+        return longitude != null && !longitude.isNaN() && !longitude.isInfinite() && longitude >= -180 && longitude <= 180;
     }
 
     @Data

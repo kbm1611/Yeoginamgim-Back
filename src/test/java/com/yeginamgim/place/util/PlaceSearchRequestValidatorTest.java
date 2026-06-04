@@ -99,6 +99,24 @@ class PlaceSearchRequestValidatorTest {
     }
 
     @Test
+    void validateKeywordSearchKeepsValidLocationWithDefaultKeywordRadius() {
+        PlaceSearchRequest request = PlaceSearchRequest.builder()
+                .query("  coffee  ")
+                .latitude(37.5447)
+                .longitude(127.0559)
+                .category("not-a-search-filter")
+                .build();
+
+        PlaceSearchRequest validated = validator.validateKeywordSearch(request);
+
+        assertThat(validated.getQuery()).isEqualTo("coffee");
+        assertThat(validated.getCategory()).isNull();
+        assertThat(validated.getLatitude()).isEqualTo(37.5447);
+        assertThat(validated.getLongitude()).isEqualTo(127.0559);
+        assertThat(validated.getRadius()).isEqualTo(2000);
+    }
+
+    @Test
     void validateKeywordSearchDoesNotRequireCoordinates() {
         PlaceSearchRequest request = PlaceSearchRequest.builder()
                 .query("coffee")

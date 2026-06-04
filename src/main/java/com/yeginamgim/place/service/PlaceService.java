@@ -95,20 +95,37 @@ public class PlaceService {
 
         int limit = placeSearchRequestValidator.normalizeLimit(safeRequest.getLimit());
 
-        PlaceSearchRequest kakaoRequest = PlaceSearchRequest.builder()
+        Map<String, PlaceInfo> placesByKakaoPlaceId = new LinkedHashMap<>();
+        if (hasKeywordLocation(safeRequest)) {
+            PlaceSearchRequest nearbyKakaoRequest = PlaceSearchRequest.builder()
+                    .query(safeRequest.getQuery())
+                    .latitude(safeRequest.getLatitude())
+                    .longitude(safeRequest.getLongitude())
+                    .radius(safeRequest.getRadius())
+                    .limit(limit)
+                    .page(safeRequest.getPage())
+                    .build();
+
+            putPlacesByKakaoPlaceId(
+                    placesByKakaoPlaceId,
+                    kakaoLocalService.searchByKeyword(nearbyKakaoRequest)
+            );
+        }
+
+        PlaceSearchRequest globalKakaoRequest = PlaceSearchRequest.builder()
                 .query(safeRequest.getQuery())
                 .limit(limit)
                 .page(safeRequest.getPage())
                 .build();
 
-        Map<String, PlaceResponse> responsesByKakaoPlaceId = new LinkedHashMap<>();
-        toPlaceResponses(kakaoLocalService.searchByKeyword(kakaoRequest)).forEach(response ->
-                responsesByKakaoPlaceId.putIfAbsent(response.getKakaoPlaceId(), response)
+        putPlacesByKakaoPlaceId(
+                placesByKakaoPlaceId,
+                kakaoLocalService.searchByKeyword(globalKakaoRequest)
         );
 
-        return responsesByKakaoPlaceId.values().stream()
+        return toPlaceResponses(placesByKakaoPlaceId.values().stream()
                 .limit(limit)
-                .toList();
+                .toList());
     }
 
     @Transactional(readOnly = true)
@@ -185,6 +202,20 @@ public class PlaceService {
         }
 
         return true;
+    }
+
+    private boolean hasKeywordLocation(PlaceSearchRequest request) {
+        return request.getLatitude() != null && request.getLongitude() != null;
+    }
+
+    private void putPlacesByKakaoPlaceId(Map<String, PlaceInfo> placesByKakaoPlaceId, List<PlaceInfo> placeInfos) {
+        if (placeInfos == null) {
+            return;
+        }
+
+        placeInfos.stream()
+                .filter(placeInfo -> placeInfo != null && StringUtils.hasText(placeInfo.getKakaoPlaceId()))
+                .forEach(placeInfo -> placesByKakaoPlaceId.putIfAbsent(placeInfo.getKakaoPlaceId(), placeInfo));
     }
 
     private boolean matchesLocation(

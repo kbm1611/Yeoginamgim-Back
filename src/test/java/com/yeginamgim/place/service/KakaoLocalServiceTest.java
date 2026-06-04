@@ -74,10 +74,40 @@ class KakaoLocalServiceTest {
         assertThat(kakaoLocalService.searchByKeyword(PlaceSearchRequest.builder()
                 .query("coffee")
                 .category("cafe")
+                .limit(20)
+                .build())).isEmpty();
+
+        server.verify();
+    }
+
+    @Test
+    void keywordSearchUsesLocationAndTwoKilometerRadiusWhenCoordinatesArePresent() {
+        RestClient.Builder builder = RestClient.builder().baseUrl("https://dapi.kakao.com");
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        KakaoLocalService kakaoLocalService = new KakaoLocalService("test-key", builder.build());
+
+        server.expect(request -> {
+                    assertThat(request.getURI().getPath()).isEqualTo("/v2/local/search/keyword.json");
+                    String query = request.getURI().getRawQuery();
+                    assertThat(query).contains("query=coffee");
+                    assertThat(query).contains("y=37.5447");
+                    assertThat(query).contains("x=127.0559");
+                    assertThat(query).contains("radius=2000");
+                    assertThat(query).contains("page=2");
+                    assertThat(query).contains("size=10");
+                    assertThat(query).contains("sort=accuracy");
+                    assertThat(query).doesNotContain("sort=distance");
+                })
+                .andExpect(header("Authorization", "KakaoAK test-key"))
+                .andRespond(withSuccess("{\"documents\":[]}", MediaType.APPLICATION_JSON));
+
+        assertThat(kakaoLocalService.searchByKeyword(PlaceSearchRequest.builder()
+                .query("coffee")
                 .latitude(37.5447)
                 .longitude(127.0559)
-                .radius(20000)
-                .limit(20)
+                .radius(2000)
+                .page(2)
+                .limit(10)
                 .build())).isEmpty();
 
         server.verify();
