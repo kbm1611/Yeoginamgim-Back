@@ -22,6 +22,8 @@ public class TraceElement extends BaseTime {
     @Column(name = "element_id")
     private Long elementId;
 
+
+
     /** 연결된 흔적 (FK → traces.trace_id) */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "trace_id", nullable = false)
