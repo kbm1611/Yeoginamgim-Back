@@ -131,16 +131,6 @@ public class KakaoLocalService {
                 .queryParam("size", defaultLimit(request.getLimit()))
                 .queryParam("sort", "accuracy");
 
-        PlaceCategory.toKakaoCategoryCode(request.getCategory()).ifPresent(categoryCode ->
-                builder.queryParam("category_group_code", categoryCode)
-        );
-
-        if (request.getLatitude() != null && request.getLongitude() != null) {
-            builder.queryParam("y", request.getLatitude())
-                    .queryParam("x", request.getLongitude())
-                    .queryParam("radius", defaultRadius(request.getRadius()));
-        }
-
         return builder.build();
     }
 

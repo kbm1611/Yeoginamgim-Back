@@ -94,14 +94,9 @@ public class PlaceService {
         PlaceSearchRequest safeRequest = placeSearchRequestValidator.validateKeywordSearch(request);
 
         int limit = placeSearchRequestValidator.normalizeLimit(safeRequest.getLimit());
-        int radius = placeSearchRequestValidator.normalizeRadius(safeRequest.getRadius());
 
         PlaceSearchRequest kakaoRequest = PlaceSearchRequest.builder()
                 .query(safeRequest.getQuery())
-                .latitude(safeRequest.getLatitude())
-                .longitude(safeRequest.getLongitude())
-                .radius(radius)
-                .category(safeRequest.getCategory())
                 .limit(limit)
                 .page(safeRequest.getPage())
                 .build();

@@ -231,10 +231,10 @@ class PlaceServiceTest {
         assertThat(responses.get(0).getTraceCount()).isEqualTo(6L);
         verify(kakaoLocalService).searchByKeyword(argThat(request ->
                 "coffee".equals(request.getQuery())
-                        && request.getLatitude().equals(37.5447)
-                        && request.getLongitude().equals(127.0559)
-                        && "CE7".equals(request.getCategory())
-                        && request.getRadius() == 1000
+                        && request.getLatitude() == null
+                        && request.getLongitude() == null
+                        && request.getCategory() == null
+                        && request.getRadius() == null
                         && request.getLimit() == 15
         ));
         verify(kakaoLocalService, never()).searchByCategory(org.mockito.ArgumentMatchers.any());

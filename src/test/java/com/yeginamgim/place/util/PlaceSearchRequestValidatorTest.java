@@ -80,6 +80,36 @@ class PlaceSearchRequestValidatorTest {
     }
 
     @Test
+    void validateKeywordSearchTrimsQueryAndIgnoresCategoryAndLocationFilters() {
+        PlaceSearchRequest request = PlaceSearchRequest.builder()
+                .query("  coffee  ")
+                .latitude(91.0)
+                .longitude(181.0)
+                .radius(20000)
+                .category("not-a-search-filter")
+                .build();
+
+        PlaceSearchRequest validated = validator.validateKeywordSearch(request);
+
+        assertThat(validated.getQuery()).isEqualTo("coffee");
+        assertThat(validated.getCategory()).isNull();
+        assertThat(validated.getLatitude()).isNull();
+        assertThat(validated.getLongitude()).isNull();
+        assertThat(validated.getRadius()).isNull();
+    }
+
+    @Test
+    void validateKeywordSearchDoesNotRequireCoordinates() {
+        PlaceSearchRequest request = PlaceSearchRequest.builder()
+                .query("coffee")
+                .build();
+
+        PlaceSearchRequest validated = validator.validateKeywordSearch(request);
+
+        assertThat(validated.getQuery()).isEqualTo("coffee");
+    }
+
+    @Test
     void normalizeLimitAndRadiusApplyDefaultsAndMaximums() {
         assertThat(validator.normalizeLimit(null)).isEqualTo(15);
         assertThat(validator.normalizeLimit(100)).isEqualTo(15);

@@ -53,7 +53,7 @@ class PlaceControllerTest {
     }
 
     @Test
-    void placeSearchAcceptsKeywordLocationRadiusLimitAndCategoryFilter() throws Exception {
+    void placeSearchAcceptsKeywordLocationRadiusAndLimitParameters() throws Exception {
         when(placeService.searchPlacesByKeyword(org.mockito.ArgumentMatchers.any(PlaceSearchRequest.class)))
                 .thenReturn(List.of());
 
@@ -62,8 +62,7 @@ class PlaceControllerTest {
                         .param("latitude", "37.5447")
                         .param("longitude", "127.0559")
                         .param("radius", "1000")
-                        .param("limit", "15")
-                        .param("category", "CE7"))
+                        .param("limit", "15"))
                 .andExpect(status().isOk());
 
         verify(placeService).searchPlacesByKeyword(argThat(request ->
@@ -72,7 +71,7 @@ class PlaceControllerTest {
                         && request.getLongitude().equals(127.0559)
                         && request.getRadius().equals(1000)
                         && request.getLimit().equals(15)
-                        && "CE7".equals(request.getCategory())
+                        && request.getCategory() == null
         ));
     }
 }

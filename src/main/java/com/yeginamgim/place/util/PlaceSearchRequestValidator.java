@@ -52,26 +52,11 @@ public class PlaceSearchRequestValidator {
             throw new InvalidPlaceRequestException("검색어는 필수입니다.");
         }
 
-        if (request.getLatitude() == null || request.getLongitude() == null) {
-            throw new InvalidPlaceRequestException("위도와 경도는 필수입니다.");
-        }
-
-        if (!isValidLatitude(request.getLatitude()) || !isValidLongitude(request.getLongitude())) {
-            throw new InvalidPlaceRequestException("위도 또는 경도 범위가 올바르지 않습니다.");
-        }
-
-        if (request.getRadius() != null && (request.getRadius() <= 0 || request.getRadius() > MAX_RADIUS)) {
-            throw new InvalidPlaceRequestException("반경은 1m 이상 20000m 이하여야 합니다.");
-        }
-
         request.setQuery(request.getQuery().trim());
-        if (StringUtils.hasText(request.getCategory())) {
-            String categoryCode = PlaceCategory.toKakaoCategoryCode(request.getCategory()).orElse(null);
-            if (!StringUtils.hasText(categoryCode)) {
-                throw new InvalidPlaceRequestException("지원하지 않는 장소 카테고리입니다.");
-            }
-            request.setCategory(categoryCode);
-        }
+        request.setLatitude(null);
+        request.setLongitude(null);
+        request.setRadius(null);
+        request.setCategory(null);
 
         return request;
     }

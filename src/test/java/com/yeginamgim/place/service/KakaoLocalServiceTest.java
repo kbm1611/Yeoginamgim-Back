@@ -50,7 +50,7 @@ class KakaoLocalServiceTest {
     }
 
     @Test
-    void keywordSearchWithLocationUsesAccuracySortRadiusCategoryAndFifteenResults() {
+    void keywordSearchUsesAccuracySortAndFifteenResultsWithoutCategoryOrRadiusFilters() {
         RestClient.Builder builder = RestClient.builder().baseUrl("https://dapi.kakao.com");
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
         KakaoLocalService kakaoLocalService = new KakaoLocalService("test-key", builder.build());
@@ -59,13 +59,13 @@ class KakaoLocalServiceTest {
                     assertThat(request.getURI().getPath()).isEqualTo("/v2/local/search/keyword.json");
                     String query = request.getURI().getRawQuery();
                     assertThat(query).contains("query=coffee");
-                    assertThat(query).contains("category_group_code=CE7");
-                    assertThat(query).contains("y=37.5447");
-                    assertThat(query).contains("x=127.0559");
-                    assertThat(query).contains("radius=1000");
                     assertThat(query).contains("page=1");
                     assertThat(query).contains("size=15");
                     assertThat(query).contains("sort=accuracy");
+                    assertThat(query).doesNotContain("category_group_code");
+                    assertThat(query).doesNotContain("y=37.5447");
+                    assertThat(query).doesNotContain("x=127.0559");
+                    assertThat(query).doesNotContain("radius=");
                     assertThat(query).doesNotContain("sort=distance");
                 })
                 .andExpect(header("Authorization", "KakaoAK test-key"))
