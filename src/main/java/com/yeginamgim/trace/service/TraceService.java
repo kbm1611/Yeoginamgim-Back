@@ -1,9 +1,13 @@
 package com.yeginamgim.trace.service;
 
 import com.yeginamgim.auth.jwt.JWTService;
+import com.yeginamgim.board.dto.PlaceInfo;
 import com.yeginamgim.board.entity.BoardEntity;
 import com.yeginamgim.board.repository.BoardRepository;
 import com.yeginamgim.global.file.FileService;
+import com.yeginamgim.global.util.PeriodRange;
+import com.yeginamgim.place.repository.PlaceCsvStore;
+import com.yeginamgim.trace.dto.RecentTraceResponse;
 import com.yeginamgim.trace.dto.TraceCreateRequest;
 import com.yeginamgim.trace.dto.TraceElementCreateRequest;
 import com.yeginamgim.trace.dto.TraceElementResponse;
@@ -29,6 +33,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -52,6 +57,7 @@ public class TraceService {
     private final UserRepository userRepository;
     private final FileService fileService;
     private final JWTService jwtService;
+    private final PlaceCsvStore placeCsvStore;
 
     // board_id 기준 흔적 목록 조회
     @Transactional(readOnly = true)
@@ -124,6 +130,45 @@ public class TraceService {
         };
     }
 
+    @Transactional(readOnly = true)
+    public List<RecentTraceResponse> getRecentTraces(
+            String period,
+            String district,
+            Integer limit,
+            String authorization
+    ) {
+        Pageable pageable = toPageable(limit == null ? 5 : limit);
+        LocalDateTime startAt = PeriodRange.startAt(period);
+        String normalizedDistrict = normalizeDistrict(district);
+        List<String> districtKakaoPlaceIds = findDistrictKakaoPlaceIds(normalizedDistrict);
+        Long viewerUserId = findOptionalUserIdByToken(authorization);
+
+        if (StringUtils.hasText(normalizedDistrict) && districtKakaoPlaceIds.isEmpty()) {
+            return List.of();
+        }
+
+        List<Trace> traces = StringUtils.hasText(normalizedDistrict)
+                ? traceRepository.findRecentActiveTracesByKakaoPlaceIdsSince(
+                        TraceStatus.ACTIVE,
+                        startAt,
+                        districtKakaoPlaceIds,
+                        pageable
+                )
+                : traceRepository.findRecentActiveTracesSince(TraceStatus.ACTIVE, startAt, pageable);
+
+        Map<Long, List<TraceElement>> elementMap = findElementsByTraceIds(traces.stream()
+                .map(Trace::getTraceId)
+                .toList());
+
+        return traces.stream()
+                .map(trace -> toRecentTraceResponse(
+                        trace,
+                        elementMap.getOrDefault(trace.getTraceId(), List.of()),
+                        viewerUserId
+                ))
+                .toList();
+    }
+
     private List<Trace> findBoardAreaTraces(
             Long boardId,
             Integer minX,
@@ -173,12 +218,7 @@ public class TraceService {
                 .map(Trace::getTraceId)
                 .toList();
 
-        Map<Long, List<TraceElement>> elementMap = traceIds.isEmpty()
-                ? Map.of()
-                : traceElementRepository
-                        .findByTrace_TraceIdInOrderByElementIdAsc(traceIds)
-                        .stream()
-                        .collect(Collectors.groupingBy(element -> element.getTrace().getTraceId()));
+        Map<Long, List<TraceElement>> elementMap = findElementsByTraceIds(traceIds);
 
         List<TraceResponse> responses = traces.stream()
                 .map(trace -> toTraceResponse(
@@ -189,6 +229,63 @@ public class TraceService {
                 .toList();
 
         return TraceListResponse.of(board.getBoardId(), responses);
+    }
+
+    private Map<Long, List<TraceElement>> findElementsByTraceIds(List<Long> traceIds) {
+        if (traceIds.isEmpty()) {
+            return Map.of();
+        }
+
+        return traceElementRepository
+                .findByTrace_TraceIdInOrderByElementIdAsc(traceIds)
+                .stream()
+                .collect(Collectors.groupingBy(element -> element.getTrace().getTraceId()));
+    }
+
+    private RecentTraceResponse toRecentTraceResponse(Trace trace, List<TraceElement> elements, Long viewerUserId) {
+        TraceElement firstTextElement = elements.stream()
+                .filter(element -> StringUtils.hasText(element.getTextContent()))
+                .findFirst()
+                .orElse(null);
+        TraceElement firstImageElement = elements.stream()
+                .filter(element -> StringUtils.hasText(element.getImageUrl()))
+                .findFirst()
+                .orElse(null);
+        String previewText = firstTextElement != null
+                ? firstTextElement.getTextContent().trim()
+                : firstImageElement != null ? "이미지 흔적" : "남겨진 흔적";
+        String imageUrl = firstImageElement == null ? "" : firstImageElement.getImageUrl();
+        PlaceInfo placeInfo = placeCsvStore.findByKakaoPlaceId(trace.getBoard().getKakaoPlaceId()).orElse(null);
+
+        return RecentTraceResponse.from(
+                trace,
+                placeInfo,
+                previewText,
+                imageUrl,
+                traceLikeRepository.countByTrace_TraceId(trace.getTraceId())
+        );
+    }
+
+    private List<String> findDistrictKakaoPlaceIds(String district) {
+        if (!StringUtils.hasText(district)) {
+            return List.of();
+        }
+
+        return placeCsvStore.findAll().stream()
+                .filter(placeInfo -> StringUtils.hasText(placeInfo.getKakaoPlaceId()))
+                .filter(placeInfo -> StringUtils.hasText(placeInfo.getAddress()))
+                .filter(placeInfo -> placeInfo.getAddress().contains(district))
+                .map(PlaceInfo::getKakaoPlaceId)
+                .distinct()
+                .toList();
+    }
+
+    private String normalizeDistrict(String district) {
+        if (!StringUtils.hasText(district) || "전체".equals(district.trim())) {
+            return "";
+        }
+
+        return district.trim();
     }
 
     // board_id 기준 흔적 생성
