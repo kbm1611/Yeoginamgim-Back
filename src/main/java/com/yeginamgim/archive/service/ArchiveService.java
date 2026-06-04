@@ -5,10 +5,17 @@ import com.yeginamgim.archive.dto.ArchiveBoardListResponse;
 import com.yeginamgim.archive.dto.ArchiveCalendarResponse;
 import com.yeginamgim.archive.dto.ArchiveDateGroupResponse;
 import com.yeginamgim.archive.dto.ArchiveTraceListResponse;
+import com.yeginamgim.archive.dto.FavoritePlaceListResponse;
+import com.yeginamgim.archive.dto.FavoritePlaceRequest;
+import com.yeginamgim.archive.dto.FavoritePlaceResponse;
+import com.yeginamgim.archive.entity.FavoritePlace;
+import com.yeginamgim.archive.repository.FavoritePlaceRepository;
 import com.yeginamgim.auth.jwt.JWTService;
 import com.yeginamgim.board.dto.PlaceInfo;
 import com.yeginamgim.board.entity.BoardEntity;
+import com.yeginamgim.board.repository.BoardRepository;
 import com.yeginamgim.board.service.BoardService;
+import com.yeginamgim.place.repository.PlaceCsvStore;
 import com.yeginamgim.trace.dto.TraceElementResponse;
 import com.yeginamgim.trace.dto.TraceResponse;
 import com.yeginamgim.trace.entity.Trace;
@@ -23,6 +30,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
@@ -41,8 +49,11 @@ public class ArchiveService {
     private final TraceRepository traceRepository;
     private final TraceElementRepository traceElementRepository;
     private final TraceLikeRepository traceLikeRepository;
+    private final FavoritePlaceRepository favoritePlaceRepository;
+    private final BoardRepository boardRepository;
     private final UserRepository userRepository;
     private final BoardService boardService;
+    private final PlaceCsvStore placeCsvStore;
     private final JWTService jwtService;
 
     // 내가 남긴 흔적 전체 조회
@@ -155,6 +166,49 @@ public class ArchiveService {
         return ArchiveTraceListResponse.of(userId, likedTraces);
     }
 
+    // 내가 즐겨찾기한 장소 목록 조회
+    @Transactional(readOnly = true)
+    public FavoritePlaceListResponse getFavoritePlaces(String authorization) {
+        Long userId = findUserByToken(authorization).getUserId();
+
+        List<FavoritePlaceResponse> places = favoritePlaceRepository
+                .findByUser_UserIdOrderByCreatedAtDescFavoritePlaceIdDesc(userId)
+                .stream()
+                .map(this::toFavoritePlaceResponse)
+                .toList();
+
+        return FavoritePlaceListResponse.of(userId, places);
+    }
+
+    // 장소 즐겨찾기 등록
+    @Transactional
+    public FavoritePlaceResponse addFavoritePlace(
+            String authorization,
+            String kakaoPlaceId,
+            FavoritePlaceRequest request
+    ) {
+        UserEntity user = findUserByToken(authorization);
+        validateKakaoPlaceId(kakaoPlaceId);
+        savePlaceSnapshotIfNeeded(kakaoPlaceId, request);
+
+        FavoritePlace favoritePlace = favoritePlaceRepository
+                .findByUser_UserIdAndKakaoPlaceId(user.getUserId(), kakaoPlaceId)
+                .orElseGet(() -> favoritePlaceRepository.save(FavoritePlace.create(user, kakaoPlaceId)));
+
+        return toFavoritePlaceResponse(favoritePlace);
+    }
+
+    // 장소 즐겨찾기 취소
+    @Transactional
+    public void removeFavoritePlace(String authorization, String kakaoPlaceId) {
+        Long userId = findUserByToken(authorization).getUserId();
+        validateKakaoPlaceId(kakaoPlaceId);
+
+        if (favoritePlaceRepository.existsByUser_UserIdAndKakaoPlaceId(userId, kakaoPlaceId)) {
+            favoritePlaceRepository.deleteByUser_UserIdAndKakaoPlaceId(userId, kakaoPlaceId);
+        }
+    }
+
     private UserEntity findUserByToken(String authorization) {
         if (authorization == null || !authorization.startsWith("Bearer ")) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "인증되지 않은 요청입니다.");
@@ -173,6 +227,41 @@ public class ArchiveService {
         if (month < 1 || month > 12) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "month는 1부터 12 사이여야 합니다.");
         }
+    }
+
+    private void validateKakaoPlaceId(String kakaoPlaceId) {
+        if (!StringUtils.hasText(kakaoPlaceId)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "kakaoPlaceId는 필수입니다.");
+        }
+    }
+
+    private void savePlaceSnapshotIfNeeded(String kakaoPlaceId, FavoritePlaceRequest request) {
+        if (placeCsvStore.findByKakaoPlaceId(kakaoPlaceId).isPresent()) {
+            return;
+        }
+
+        if (!hasPlaceSnapshot(request)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "즐겨찾기할 장소 정보를 찾을 수 없습니다.");
+        }
+
+        placeCsvStore.saveIfAbsent(PlaceInfo.builder()
+                .kakaoPlaceId(kakaoPlaceId)
+                .placeName(request.getPlaceName())
+                .latitude(request.getLatitude())
+                .longitude(request.getLongitude())
+                .phone(request.getPhone())
+                .address(request.getAddress())
+                .kakaoMapUrl(request.getKakaoMapUrl())
+                .groupName(request.getGroupName())
+                .build());
+    }
+
+    private boolean hasPlaceSnapshot(FavoritePlaceRequest request) {
+        return request != null
+                && StringUtils.hasText(request.getPlaceName())
+                && request.getLatitude() != null
+                && request.getLongitude() != null
+                && StringUtils.hasText(request.getGroupName());
     }
 
     private List<TraceResponse> toTraceResponses(List<Trace> traces, Long viewerUserId) {
@@ -211,5 +300,17 @@ public class ArchiveService {
 
     private boolean isLikedByUser(Long userId, Long traceId) {
         return userId != null && traceLikeRepository.existsByUser_UserIdAndTrace_TraceId(userId, traceId);
+    }
+
+    private FavoritePlaceResponse toFavoritePlaceResponse(FavoritePlace favoritePlace) {
+        PlaceInfo placeInfo = placeCsvStore.findByKakaoPlaceId(favoritePlace.getKakaoPlaceId())
+                .orElseGet(() -> PlaceInfo.builder()
+                        .kakaoPlaceId(favoritePlace.getKakaoPlaceId())
+                        .build());
+        Long boardId = boardRepository.findByKakaoPlaceId(favoritePlace.getKakaoPlaceId())
+                .map(BoardEntity::getBoardId)
+                .orElse(null);
+
+        return FavoritePlaceResponse.from(favoritePlace, placeInfo, boardId);
     }
 }

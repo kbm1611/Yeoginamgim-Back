@@ -22,6 +22,19 @@ CREATE TABLE IF NOT EXISTS board (
     UNIQUE KEY uk_board_kakao_place_id (kakao_place_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS favorite_place (
+    favorite_place_id BIGINT NOT NULL AUTO_INCREMENT,
+    user_id BIGINT NOT NULL,
+    kakao_place_id VARCHAR(100) NOT NULL,
+    created_at DATETIME(6) NULL,
+    updated_at DATETIME(6) NULL,
+    PRIMARY KEY (favorite_place_id),
+    UNIQUE KEY uk_favorite_place_user_place (user_id, kakao_place_id),
+    KEY idx_favorite_place_user_id (user_id),
+    KEY idx_favorite_place_kakao_place_id (kakao_place_id),
+    CONSTRAINT fk_favorite_place_user FOREIGN KEY (user_id) REFERENCES users (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS trace (
     trace_id BIGINT NOT NULL AUTO_INCREMENT,
     user_id BIGINT NOT NULL,
