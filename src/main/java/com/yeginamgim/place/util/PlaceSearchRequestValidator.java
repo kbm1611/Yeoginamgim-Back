@@ -57,7 +57,11 @@ public class PlaceSearchRequestValidator {
     }
 
     public int normalizeRadius(Integer radius) {
-        return radius == null || radius <= 0 ? DEFAULT_RADIUS : radius;
+        if (radius == null || radius <= 0) {
+            return DEFAULT_RADIUS;
+        }
+
+        return Math.min(radius, DEFAULT_RADIUS);
     }
 
     private boolean isValidLatitude(Double latitude) {
