@@ -1,11 +1,13 @@
 package com.yeginamgim.place.controller;
 
+import com.yeginamgim.place.dto.request.PlaceSearchRequest;
 import com.yeginamgim.place.service.PlaceService;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
 
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -48,5 +50,29 @@ class PlaceControllerTest {
                 .andExpect(status().isOk());
 
         verify(placeService).getPopularPlaces(10, null, 37.5447, 127.0559, 20000);
+    }
+
+    @Test
+    void placeSearchAcceptsKeywordLocationRadiusLimitAndCategoryFilter() throws Exception {
+        when(placeService.searchPlacesByKeyword(org.mockito.ArgumentMatchers.any(PlaceSearchRequest.class)))
+                .thenReturn(List.of());
+
+        mockMvc.perform(get("/api/places/search")
+                        .param("query", "coffee")
+                        .param("latitude", "37.5447")
+                        .param("longitude", "127.0559")
+                        .param("radius", "1000")
+                        .param("limit", "15")
+                        .param("category", "CE7"))
+                .andExpect(status().isOk());
+
+        verify(placeService).searchPlacesByKeyword(argThat(request ->
+                "coffee".equals(request.getQuery())
+                        && request.getLatitude().equals(37.5447)
+                        && request.getLongitude().equals(127.0559)
+                        && request.getRadius().equals(1000)
+                        && request.getLimit().equals(15)
+                        && "CE7".equals(request.getCategory())
+        ));
     }
 }
