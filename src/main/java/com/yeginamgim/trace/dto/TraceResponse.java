@@ -26,11 +26,16 @@ public class TraceResponse {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private Long likeCount;
+    private Boolean liked;
 
     @Builder.Default
     private List<TraceElementResponse> elements = new ArrayList<>();
 
     public static TraceResponse from(Trace trace, List<TraceElementResponse> elements, Long likeCount) {
+        return from(trace, elements, likeCount, false);
+    }
+
+    public static TraceResponse from(Trace trace, List<TraceElementResponse> elements, Long likeCount, Boolean liked) {
         return TraceResponse.builder()
                 .traceId(trace.getTraceId())
                 .boardId(trace.getBoard().getBoardId())
@@ -42,6 +47,7 @@ public class TraceResponse {
                 .createdAt(trace.getCreatedAt())
                 .updatedAt(trace.getUpdatedAt())
                 .likeCount(likeCount)
+                .liked(liked)
                 .elements(elements)
                 .build();
     }

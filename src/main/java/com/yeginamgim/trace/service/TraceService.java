@@ -56,13 +56,25 @@ public class TraceService {
     // board_id 기준 흔적 목록 조회
     @Transactional(readOnly = true)
     public TraceListResponse getTracesByBoardId(Long boardId, String sort, Integer limit, LocalDateTime before) {
+        return getTracesByBoardId(boardId, sort, limit, before, null);
+    }
+
+    @Transactional(readOnly = true)
+    public TraceListResponse getTracesByBoardId(
+            Long boardId,
+            String sort,
+            Integer limit,
+            LocalDateTime before,
+            String authorization
+    ) {
         BoardEntity board = findBoard(boardId);
         TraceSortType sortType = parseSortType(sort);
         Pageable pageable = toPageable(limit);
+        Long viewerUserId = findOptionalUserIdByToken(authorization);
 
         List<Trace> traces = findBoardTraces(board.getBoardId(), sortType, before, pageable);
 
-        return toTraceListResponse(board, traces);
+        return toTraceListResponse(board, traces, viewerUserId);
     }
 
     // board_id와 좌표 범위 기준 흔적 목록 조회
@@ -77,15 +89,31 @@ public class TraceService {
             Integer limit,
             LocalDateTime before
     ) {
+        return getTracesByBoardArea(boardId, minX, maxX, minY, maxY, sort, limit, before, null);
+    }
+
+    @Transactional(readOnly = true)
+    public TraceListResponse getTracesByBoardArea(
+            Long boardId,
+            Integer minX,
+            Integer maxX,
+            Integer minY,
+            Integer maxY,
+            String sort,
+            Integer limit,
+            LocalDateTime before,
+            String authorization
+    ) {
         validateAreaRange(minX, maxX, minY, maxY);
 
         BoardEntity board = findBoard(boardId);
         TraceSortType sortType = parseSortType(sort);
         Pageable pageable = toPageable(limit);
+        Long viewerUserId = findOptionalUserIdByToken(authorization);
 
         List<Trace> traces = findBoardAreaTraces(board.getBoardId(), minX, maxX, minY, maxY, sortType, before, pageable);
 
-        return toTraceListResponse(board, traces);
+        return toTraceListResponse(board, traces, viewerUserId);
     }
 
     private List<Trace> findBoardTraces(Long boardId, TraceSortType sortType, LocalDateTime before, Pageable pageable) {
@@ -140,7 +168,7 @@ public class TraceService {
         };
     }
 
-    private TraceListResponse toTraceListResponse(BoardEntity board, List<Trace> traces) {
+    private TraceListResponse toTraceListResponse(BoardEntity board, List<Trace> traces, Long viewerUserId) {
         List<Long> traceIds = traces.stream()
                 .map(Trace::getTraceId)
                 .toList();
@@ -155,7 +183,8 @@ public class TraceService {
         List<TraceResponse> responses = traces.stream()
                 .map(trace -> toTraceResponse(
                         trace,
-                        elementMap.getOrDefault(trace.getTraceId(), List.of())
+                        elementMap.getOrDefault(trace.getTraceId(), List.of()),
+                        viewerUserId
                 ))
                 .toList();
 
@@ -183,16 +212,22 @@ public class TraceService {
             traceElementRepository.saveAll(elements);
         }
 
-        return toTraceResponse(trace, elements);
+        return toTraceResponse(trace, elements, user.getUserId());
     }
 
     // trace_id 기준 흔적 상세 조회
     @Transactional(readOnly = true)
     public TraceResponse getTrace(Long traceId) {
+        return getTrace(traceId, null);
+    }
+
+    @Transactional(readOnly = true)
+    public TraceResponse getTrace(Long traceId, String authorization) {
         Trace trace = findTrace(traceId);
         List<TraceElement> elements = traceElementRepository.findByTrace_TraceIdOrderByElementIdAsc(traceId);
+        Long viewerUserId = findOptionalUserIdByToken(authorization);
 
-        return toTraceResponse(trace, elements);
+        return toTraceResponse(trace, elements, viewerUserId);
     }
 
     // 흔적 이미지 업로드
@@ -227,7 +262,7 @@ public class TraceService {
 
         List<TraceElement> elements = traceElementRepository.findByTrace_TraceIdOrderByElementIdAsc(traceId);
 
-        return toTraceResponse(trace, elements);
+        return toTraceResponse(trace, elements, user.getUserId());
     }
 
     // trace_id 기준 흔적 숨김 처리
@@ -342,6 +377,14 @@ public class TraceService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "사용자를 찾을 수 없습니다."));
     }
 
+    private Long findOptionalUserIdByToken(String authorization) {
+        if (authorization == null || authorization.isBlank()) {
+            return null;
+        }
+
+        return findUserByToken(authorization).getUserId();
+    }
+
     private Trace findTrace(Long traceId) {
         return traceRepository.findById(traceId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "흔적을 찾을 수 없습니다."));
@@ -440,6 +483,10 @@ public class TraceService {
     }
 
     private TraceResponse toTraceResponse(Trace trace, List<TraceElement> elements) {
+        return toTraceResponse(trace, elements, null);
+    }
+
+    private TraceResponse toTraceResponse(Trace trace, List<TraceElement> elements, Long viewerUserId) {
         List<TraceElementResponse> elementResponses = elements.stream()
                 .map(TraceElementResponse::from)
                 .toList();
@@ -447,8 +494,13 @@ public class TraceService {
         return TraceResponse.from(
                 trace,
                 elementResponses,
-                traceLikeRepository.countByTrace_TraceId(trace.getTraceId())
+                traceLikeRepository.countByTrace_TraceId(trace.getTraceId()),
+                isLikedByUser(viewerUserId, trace.getTraceId())
         );
+    }
+
+    private boolean isLikedByUser(Long userId, Long traceId) {
+        return userId != null && traceLikeRepository.existsByUser_UserIdAndTrace_TraceId(userId, traceId);
     }
 
     private TraceLikeResponse toLikeResponse(Long traceId, boolean liked) {

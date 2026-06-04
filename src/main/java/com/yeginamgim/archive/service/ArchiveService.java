@@ -53,7 +53,7 @@ public class ArchiveService {
         List<Trace> traces = traceRepository
                 .findByUser_UserIdAndTraceStatusOrderByCreatedAtDescTraceIdDesc(userId, TraceStatus.ACTIVE);
 
-        return ArchiveTraceListResponse.of(userId, toTraceResponses(traces));
+        return ArchiveTraceListResponse.of(userId, toTraceResponses(traces, userId));
     }
 
     // 내가 남긴 흔적 개별 조회
@@ -67,7 +67,7 @@ public class ArchiveService {
 
         List<TraceElement> elements = traceElementRepository.findByTrace_TraceIdOrderByElementIdAsc(trace.getTraceId());
 
-        return toTraceResponse(trace, elements);
+        return toTraceResponse(trace, elements, userId);
     }
 
     // 날짜별 기록 조회
@@ -88,7 +88,7 @@ public class ArchiveService {
                         endAt
                 );
 
-        Map<LocalDate, List<TraceResponse>> tracesByDate = toTraceResponses(traces).stream()
+        Map<LocalDate, List<TraceResponse>> tracesByDate = toTraceResponses(traces, userId).stream()
                 .collect(Collectors.groupingBy(
                         trace -> trace.getCreatedAt().toLocalDate(),
                         LinkedHashMap::new,
@@ -110,7 +110,7 @@ public class ArchiveService {
         List<Trace> traces = traceRepository
                 .findByUser_UserIdAndTraceStatusOrderByCreatedAtDescTraceIdDesc(userId, TraceStatus.ACTIVE);
 
-        Map<Long, TraceResponse> traceResponseMap = toTraceResponses(traces).stream()
+        Map<Long, TraceResponse> traceResponseMap = toTraceResponses(traces, userId).stream()
                 .collect(Collectors.toMap(
                         TraceResponse::getTraceId,
                         Function.identity(),
@@ -148,7 +148,7 @@ public class ArchiveService {
         List<Trace> traces = traceRepository
                 .findByUser_UserIdAndTraceStatusOrderByCreatedAtDescTraceIdDesc(userId, TraceStatus.ACTIVE);
 
-        List<TraceResponse> likedTraces = toTraceResponses(traces).stream()
+        List<TraceResponse> likedTraces = toTraceResponses(traces, userId).stream()
                 .filter(trace -> trace.getLikeCount() > 0)
                 .toList();
 
@@ -175,7 +175,7 @@ public class ArchiveService {
         }
     }
 
-    private List<TraceResponse> toTraceResponses(List<Trace> traces) {
+    private List<TraceResponse> toTraceResponses(List<Trace> traces, Long viewerUserId) {
         List<Long> traceIds = traces.stream()
                 .map(Trace::getTraceId)
                 .toList();
@@ -190,12 +190,13 @@ public class ArchiveService {
         return traces.stream()
                 .map(trace -> toTraceResponse(
                         trace,
-                        elementMap.getOrDefault(trace.getTraceId(), List.of())
+                        elementMap.getOrDefault(trace.getTraceId(), List.of()),
+                        viewerUserId
                 ))
                 .toList();
     }
 
-    private TraceResponse toTraceResponse(Trace trace, List<TraceElement> elements) {
+    private TraceResponse toTraceResponse(Trace trace, List<TraceElement> elements, Long viewerUserId) {
         List<TraceElementResponse> elementResponses = elements.stream()
                 .map(TraceElementResponse::from)
                 .toList();
@@ -203,7 +204,12 @@ public class ArchiveService {
         return TraceResponse.from(
                 trace,
                 elementResponses,
-                traceLikeRepository.countByTrace_TraceId(trace.getTraceId())
+                traceLikeRepository.countByTrace_TraceId(trace.getTraceId()),
+                isLikedByUser(viewerUserId, trace.getTraceId())
         );
+    }
+
+    private boolean isLikedByUser(Long userId, Long traceId) {
+        return userId != null && traceLikeRepository.existsByUser_UserIdAndTrace_TraceId(userId, traceId);
     }
 }
