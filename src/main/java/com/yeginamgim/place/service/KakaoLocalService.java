@@ -19,8 +19,8 @@ import java.util.Optional;
 public class KakaoLocalService {
 
     private static final String KAKAO_LOCAL_BASE_URL = "https://dapi.kakao.com";
-    private static final int DEFAULT_RADIUS = 2000;
-    private static final int DEFAULT_SIZE = 10;
+    private static final int DEFAULT_RADIUS = 1000;
+    private static final int DEFAULT_SIZE = 15;
     private final RestClient restClient;
     private final String restApiKey;
 
@@ -133,7 +133,8 @@ public class KakaoLocalService {
         if (request.getLatitude() != null && request.getLongitude() != null) {
             builder.queryParam("y", request.getLatitude())
                     .queryParam("x", request.getLongitude())
-                    .queryParam("radius", defaultRadius(request.getRadius()));
+                    .queryParam("radius", defaultRadius(request.getRadius()))
+                    .queryParam("sort", "distance");
         }
 
         return builder.build();
@@ -149,6 +150,7 @@ public class KakaoLocalService {
                 .queryParam("radius", defaultRadius(request.getRadius()))
                 .queryParam("page", defaultPage(request.getPage()))
                 .queryParam("size", defaultLimit(request.getLimit()))
+                .queryParam("sort", "distance")
                 .build();
     }
 
@@ -175,7 +177,11 @@ public class KakaoLocalService {
 
     // 요청 반경이 없거나 잘못된 경우 Kakao 검색 기본 반경을 사용한다.
     private int defaultRadius(Integer radius) {
-        return radius == null || radius <= 0 ? DEFAULT_RADIUS : radius;
+        if (radius == null || radius <= 0) {
+            return DEFAULT_RADIUS;
+        }
+
+        return Math.min(radius, DEFAULT_RADIUS);
     }
 
     // 요청 페이지가 없거나 잘못된 경우 첫 페이지를 사용한다.

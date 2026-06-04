@@ -36,7 +36,7 @@ class KakaoLocalServiceTest {
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
         KakaoLocalService kakaoLocalService = new KakaoLocalService("test-key", builder.build());
 
-        server.expect(requestTo("https://dapi.kakao.com/v2/local/search/keyword.json?query=cafe&page=1&size=10"))
+        server.expect(requestTo("https://dapi.kakao.com/v2/local/search/keyword.json?query=cafe&page=1&size=15"))
                 .andExpect(header("Authorization", "KakaoAK test-key"))
                 .andRespond(withStatus(HttpStatus.INTERNAL_SERVER_ERROR));
 
@@ -55,7 +55,7 @@ class KakaoLocalServiceTest {
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
         KakaoLocalService kakaoLocalService = new KakaoLocalService("test-key", builder.build());
 
-        server.expect(requestTo("https://dapi.kakao.com/v2/local/search/category.json?category_group_code=CE7&y=37.4979&x=127.0276&radius=1000&page=1&size=10"))
+        server.expect(requestTo("https://dapi.kakao.com/v2/local/search/category.json?category_group_code=CE7&y=37.4979&x=127.0276&radius=1000&page=1&size=15&sort=distance"))
                 .andExpect(header("Authorization", "KakaoAK test-key"))
                 .andRespond(withStatus(HttpStatus.INTERNAL_SERVER_ERROR));
 
@@ -67,6 +67,58 @@ class KakaoLocalServiceTest {
                 .build()))
                 .isInstanceOf(KakaoLocalApiException.class)
                 .hasMessage("카카오 Local API 호출에 실패했습니다.");
+
+        server.verify();
+    }
+
+    @Test
+    void categorySearchUsesOneKilometerDistanceSortAndFifteenResultsByDefault() {
+        RestClient.Builder builder = RestClient.builder().baseUrl("https://dapi.kakao.com");
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        KakaoLocalService kakaoLocalService = new KakaoLocalService("test-key", builder.build());
+
+        server.expect(request -> {
+                    assertThat(request.getURI().getPath()).isEqualTo("/v2/local/search/category.json");
+                    String query = request.getURI().getRawQuery();
+                    assertThat(query).contains("category_group_code=CE7");
+                    assertThat(query).contains("y=37.4979");
+                    assertThat(query).contains("x=127.0276");
+                    assertThat(query).contains("radius=1000");
+                    assertThat(query).contains("page=1");
+                    assertThat(query).contains("size=15");
+                    assertThat(query).contains("sort=distance");
+                })
+                .andExpect(header("Authorization", "KakaoAK test-key"))
+                .andRespond(withSuccess("{\"documents\":[]}", MediaType.APPLICATION_JSON));
+
+        assertThat(kakaoLocalService.searchByCategory(PlaceSearchRequest.builder()
+                .category("cafe")
+                .latitude(37.4979)
+                .longitude(127.0276)
+                .build())).isEmpty();
+
+        server.verify();
+    }
+
+    @Test
+    void categorySearchCapsWideRadiusToOneKilometer() {
+        RestClient.Builder builder = RestClient.builder().baseUrl("https://dapi.kakao.com");
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        KakaoLocalService kakaoLocalService = new KakaoLocalService("test-key", builder.build());
+
+        server.expect(request -> {
+                    assertThat(request.getURI().getPath()).isEqualTo("/v2/local/search/category.json");
+                    assertThat(request.getURI().getRawQuery()).contains("radius=1000");
+                })
+                .andExpect(header("Authorization", "KakaoAK test-key"))
+                .andRespond(withSuccess("{\"documents\":[]}", MediaType.APPLICATION_JSON));
+
+        assertThat(kakaoLocalService.searchByCategory(PlaceSearchRequest.builder()
+                .category("cafe")
+                .latitude(37.4979)
+                .longitude(127.0276)
+                .radius(20000)
+                .build())).isEmpty();
 
         server.verify();
     }
@@ -86,7 +138,8 @@ class KakaoLocalServiceTest {
                     assertThat(query).contains("x=127.0276");
                     assertThat(query).contains("radius=1000");
                     assertThat(query).contains("page=1");
-                    assertThat(query).contains("size=10");
+                    assertThat(query).contains("size=15");
+                    assertThat(query).contains("sort=distance");
                 })
                 .andExpect(header("Authorization", "KakaoAK test-key"))
                 .andRespond(withSuccess("{\"documents\":[]}", MediaType.APPLICATION_JSON));
