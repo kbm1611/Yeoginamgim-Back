@@ -17,13 +17,15 @@ public class BoardDetailResponse {
     private Long boardId;
     private String kakaoPlaceId;
     private LocalDateTime createdAt;
+    private Long traceCount;
     private PlaceInfo place;
 
-    public static BoardDetailResponse from(BoardEntity board, PlaceInfo place) {
+    public static BoardDetailResponse from(BoardEntity board, PlaceInfo place, Long traceCount) {
         return BoardDetailResponse.builder()
                 .boardId(board.getBoardId())
                 .kakaoPlaceId(board.getKakaoPlaceId())
                 .createdAt(board.getCreatedAt())
+                .traceCount(traceCount)
                 .place(place)
                 .build();
     }
