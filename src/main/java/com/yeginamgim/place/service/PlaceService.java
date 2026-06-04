@@ -90,6 +90,33 @@ public class PlaceService {
 
     // 인기 장소 목록 조회
     @Transactional(readOnly = true)
+    public List<PlaceResponse> searchPlacesByKeyword(PlaceSearchRequest request) {
+        PlaceSearchRequest safeRequest = placeSearchRequestValidator.validateKeywordSearch(request);
+
+        int limit = placeSearchRequestValidator.normalizeLimit(safeRequest.getLimit());
+        int radius = placeSearchRequestValidator.normalizeRadius(safeRequest.getRadius());
+
+        PlaceSearchRequest kakaoRequest = PlaceSearchRequest.builder()
+                .query(safeRequest.getQuery())
+                .latitude(safeRequest.getLatitude())
+                .longitude(safeRequest.getLongitude())
+                .radius(radius)
+                .category(safeRequest.getCategory())
+                .limit(limit)
+                .page(safeRequest.getPage())
+                .build();
+
+        Map<String, PlaceResponse> responsesByKakaoPlaceId = new LinkedHashMap<>();
+        toPlaceResponses(kakaoLocalService.searchByKeyword(kakaoRequest)).forEach(response ->
+                responsesByKakaoPlaceId.putIfAbsent(response.getKakaoPlaceId(), response)
+        );
+
+        return responsesByKakaoPlaceId.values().stream()
+                .limit(limit)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
     public List<PopularPlaceResponse> getPopularPlaces(Integer limit) {
         return getPopularPlaces(limit, null, null, null, null);
     }

@@ -194,6 +194,53 @@ class PlaceServiceTest {
     }
 
     @Test
+    void keywordSearchUsesKakaoKeywordResultsAndEnrichesBoardAndTraceCounts() throws Exception {
+        PlaceService placeService = placeServiceWithCache("""
+                kakao_place_id,place_name,latitude,longitude,phone,address,kakao_map_url,group_name
+                """);
+        when(kakaoLocalService.searchByKeyword(org.mockito.ArgumentMatchers.any())).thenReturn(List.of(
+                PlaceInfo.builder()
+                        .kakaoPlaceId("kakao-coffee")
+                        .placeName("Kakao Coffee")
+                        .latitude(37.5447)
+                        .longitude(127.0559)
+                        .groupName("cafe")
+                        .build()
+        ));
+        when(boardRepository.findByKakaoPlaceIdIn(anyCollection())).thenReturn(List.of(BoardEntity.builder()
+                .boardId(11L)
+                .kakaoPlaceId("kakao-coffee")
+                .createdAt(LocalDateTime.now())
+                .build()));
+        when(traceRepository.countActiveByKakaoPlaceIds(anyCollection())).thenReturn(List.of(
+                placeTraceCount("kakao-coffee", 6L)
+        ));
+
+        List<PlaceResponse> responses = placeService.searchPlacesByKeyword(PlaceSearchRequest.builder()
+                .query("coffee")
+                .latitude(37.5447)
+                .longitude(127.0559)
+                .category("cafe")
+                .radius(20000)
+                .limit(20)
+                .build());
+
+        assertThat(responses).hasSize(1);
+        assertThat(responses.get(0).getKakaoPlaceId()).isEqualTo("kakao-coffee");
+        assertThat(responses.get(0).getBoardId()).isEqualTo(11L);
+        assertThat(responses.get(0).getTraceCount()).isEqualTo(6L);
+        verify(kakaoLocalService).searchByKeyword(argThat(request ->
+                "coffee".equals(request.getQuery())
+                        && request.getLatitude().equals(37.5447)
+                        && request.getLongitude().equals(127.0559)
+                        && "CE7".equals(request.getCategory())
+                        && request.getRadius() == 1000
+                        && request.getLimit() == 15
+        ));
+        verify(kakaoLocalService, never()).searchByCategory(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
     void nearbyCapsKakaoLookupToOneKilometerAndFifteenResults() throws Exception {
         PlaceService placeService = placeServiceWithCache("""
                 kakao_place_id,place_name,latitude,longitude,phone,address,kakao_map_url,group_name
