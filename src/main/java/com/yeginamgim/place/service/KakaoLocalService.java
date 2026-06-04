@@ -128,13 +128,17 @@ public class KakaoLocalService {
                 .path("/v2/local/search/keyword.json")
                 .queryParam("query", request.getQuery())
                 .queryParam("page", defaultPage(request.getPage()))
-                .queryParam("size", defaultLimit(request.getLimit()));
+                .queryParam("size", defaultLimit(request.getLimit()))
+                .queryParam("sort", "accuracy");
+
+        PlaceCategory.toKakaoCategoryCode(request.getCategory()).ifPresent(categoryCode ->
+                builder.queryParam("category_group_code", categoryCode)
+        );
 
         if (request.getLatitude() != null && request.getLongitude() != null) {
             builder.queryParam("y", request.getLatitude())
                     .queryParam("x", request.getLongitude())
-                    .queryParam("radius", defaultRadius(request.getRadius()))
-                    .queryParam("sort", "distance");
+                    .queryParam("radius", defaultRadius(request.getRadius()));
         }
 
         return builder.build();
@@ -166,7 +170,9 @@ public class KakaoLocalService {
                         ? document.getRoad_address_name()
                         : document.getAddress_name())
                 .kakaoMapUrl(document.getPlace_url())
-                .groupName(document.getCategory_group_name())
+                .groupName(StringUtils.hasText(document.getCategory_group_name())
+                        ? document.getCategory_group_name()
+                        : document.getCategory_name())
                 .build();
     }
 
@@ -219,6 +225,8 @@ public class KakaoLocalService {
     private static class KakaoPlaceDocument {
         private String id;
         private String place_name;
+        private String category_name;
+        private String category_group_code;
         private String category_group_name;
         private String phone;
         private String address_name;
