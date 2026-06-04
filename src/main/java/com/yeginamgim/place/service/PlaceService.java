@@ -5,6 +5,7 @@ import com.yeginamgim.board.entity.BoardEntity;
 import com.yeginamgim.board.repository.BoardRepository;
 import com.yeginamgim.global.exception.InvalidPlaceRequestException;
 import com.yeginamgim.global.exception.PlaceNotFoundException;
+import com.yeginamgim.global.util.PeriodRange;
 import com.yeginamgim.place.dto.request.PlaceSearchRequest;
 import com.yeginamgim.place.dto.response.PlaceResponse;
 import com.yeginamgim.place.dto.response.PopularPlaceResponse;
@@ -17,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -148,6 +150,30 @@ public class PlaceService {
             Double longitude,
             Integer radius
     ) {
+        return getPopularPlaces(limit, district, latitude, longitude, radius, null, false);
+    }
+
+    @Transactional(readOnly = true)
+    public List<PopularPlaceResponse> getPopularPlaces(
+            Integer limit,
+            String district,
+            Double latitude,
+            Double longitude,
+            Integer radius,
+            String period
+    ) {
+        return getPopularPlaces(limit, district, latitude, longitude, radius, PeriodRange.startAt(period), true);
+    }
+
+    private List<PopularPlaceResponse> getPopularPlaces(
+            Integer limit,
+            String district,
+            Double latitude,
+            Double longitude,
+            Integer radius,
+            LocalDateTime startAt,
+            boolean periodScoped
+    ) {
         int normalizedLimit = placeSearchRequestValidator.normalizeLimit(limit);
         boolean locationFiltered = hasLocationFilter(latitude, longitude);
         int normalizedRadius = placeSearchRequestValidator.normalizeRadius(radius);
@@ -156,7 +182,9 @@ public class PlaceService {
         String normalizedDistrict = normalizeDistrict(district);
 
         // 활성화된 흔적 개수 DB에서 가져오기
-        List<TraceRepository.PlaceTraceCount> traceCounts = traceRepository.countActiveTracesByPlace();
+        List<TraceRepository.PlaceTraceCount> traceCounts = periodScoped
+                ? traceRepository.countActiveTracesByPlaceSince(startAt)
+                : traceRepository.countActiveTracesByPlace();
         // 카카오Id 별 장소 정보(캐시csv파일에서 가져옴)
         Map<String, PlaceInfo> placeInfosByKakaoPlaceId = placeCsvStore.findAll().stream()
                 .filter(placeInfo -> StringUtils.hasText(placeInfo.getKakaoPlaceId()))

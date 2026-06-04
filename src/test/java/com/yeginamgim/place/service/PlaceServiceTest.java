@@ -484,6 +484,35 @@ class PlaceServiceTest {
                 .containsExactly("seongdong-1", "gangnam-1");
     }
 
+    @Test
+    void popularPlacesUsePeriodScopedTraceCounts() throws Exception {
+        PlaceService placeService = placeServiceWithCache("""
+                kakao_place_id,place_name,latitude,longitude,phone,address,kakao_map_url,group_name
+                seongdong-1,Seongdong One,37.5445,127.0557,02-1111-1111,서울 성동구 성수동,https://place.map.kakao.com/seongdong-1,culture
+                gangnam-1,Gangnam One,37.4979,127.0276,02-0000-0000,서울 강남구 테헤란로,https://place.map.kakao.com/gangnam-1,cafe
+                """);
+        when(traceRepository.countActiveTracesByPlaceSince(any(LocalDateTime.class))).thenReturn(List.of(
+                placeTraceCount("seongdong-1", 3L),
+                placeTraceCount("gangnam-1", 2L)
+        ));
+        when(boardRepository.findByKakaoPlaceIdIn(anyCollection())).thenReturn(List.of());
+
+        List<PopularPlaceResponse> responses = placeService.getPopularPlaces(
+                5,
+                "성동구",
+                null,
+                null,
+                null,
+                "today"
+        );
+
+        assertThat(responses).extracting(PopularPlaceResponse::getKakaoPlaceId)
+                .containsExactly("seongdong-1");
+        assertThat(responses.get(0).getTraceCount()).isEqualTo(3L);
+        verify(traceRepository).countActiveTracesByPlaceSince(any(LocalDateTime.class));
+        verify(traceRepository, never()).countActiveTracesByPlace();
+    }
+
     private PlaceService placeServiceWithCache(String csv) throws Exception {
         Path cacheFile = tempDir.resolve("places-cache.csv");
         Files.writeString(cacheFile, csv);
