@@ -156,6 +156,34 @@ public interface TraceRepository extends JpaRepository<Trace, Long> {
     );
 
     @Query("""
+            SELECT t
+            FROM Trace t
+            WHERE t.traceStatus = :traceStatus
+              AND t.createdAt >= :startAt
+            ORDER BY t.createdAt DESC, t.traceId DESC
+            """)
+    List<Trace> findRecentActiveTracesSince(
+            @Param("traceStatus") TraceStatus traceStatus,
+            @Param("startAt") LocalDateTime startAt,
+            Pageable pageable
+    );
+
+    @Query("""
+            SELECT t
+            FROM Trace t
+            WHERE t.traceStatus = :traceStatus
+              AND t.createdAt >= :startAt
+              AND t.board.kakaoPlaceId in :kakaoPlaceIds
+            ORDER BY t.createdAt DESC, t.traceId DESC
+            """)
+    List<Trace> findRecentActiveTracesByKakaoPlaceIdsSince(
+            @Param("traceStatus") TraceStatus traceStatus,
+            @Param("startAt") LocalDateTime startAt,
+            @Param("kakaoPlaceIds") Collection<String> kakaoPlaceIds,
+            Pageable pageable
+    );
+
+    @Query("""
             select count(trace)
             from Trace trace
             where trace.board.kakaoPlaceId = :kakaoPlaceId
@@ -182,6 +210,17 @@ public interface TraceRepository extends JpaRepository<Trace, Long> {
             order by count(trace) desc, trace.board.kakaoPlaceId asc
             """)
     List<PlaceTraceCount> countActiveTracesByPlace();
+
+    @Query("""
+            select trace.board.kakaoPlaceId as kakaoPlaceId,
+                   count(trace) as traceCount
+            from Trace trace
+            where trace.traceStatus = com.yeginamgim.trace.enums.TraceStatus.ACTIVE
+              and trace.createdAt >= :startAt
+            group by trace.board.kakaoPlaceId
+            order by count(trace) desc, trace.board.kakaoPlaceId asc
+            """)
+    List<PlaceTraceCount> countActiveTracesByPlaceSince(@Param("startAt") LocalDateTime startAt);
 
     interface PlaceTraceCount {
         String getKakaoPlaceId();
