@@ -90,6 +90,10 @@ public class AuthService {
         UserEntity userEntity = userRepo.findByProviderAndProviderId(provider, providerId)
                 .orElse(null);
 
+        if (userEntity != null && userEntity.isWithdrawn()) {
+            throw new OAuthLoginException();
+        }
+
         if (userEntity == null) {
             if (userRepo.findByEmail(email).isPresent()) {
                 throw new DuplicateMemberException();

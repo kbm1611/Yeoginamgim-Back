@@ -1,14 +1,21 @@
 package com.yeginamgim.user.service;
 
+import com.yeginamgim.global.exception.AccountWithdrawalException;
 import com.yeginamgim.global.exception.InvalidBirthDateException;
 import com.yeginamgim.global.exception.UserNotFoundException;
 import com.yeginamgim.global.file.FileService;
+import com.yeginamgim.report.repository.ReportRepository;
+import com.yeginamgim.trace.repository.TraceLikeRepository;
 import com.yeginamgim.user.dto.request.UserSignupRequestDto;
 import com.yeginamgim.user.dto.request.UserUpdateRequestDto;
+import com.yeginamgim.user.dto.request.UserWithdrawRequestDto;
+import com.yeginamgim.user.dto.response.UserWithdrawResponseDto;
 import com.yeginamgim.user.entity.UserEntity;
+import com.yeginamgim.user.enums.LoginProvider;
 import com.yeginamgim.user.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
 import java.util.Optional;
 
@@ -23,7 +30,14 @@ class UserServiceTest {
 
     private final UserRepository userRepository = mock(UserRepository.class);
     private final FileService fileService = mock(FileService.class);
-    private final UserService userService = new UserService(userRepository, fileService);
+    private final TraceLikeRepository traceLikeRepository = mock(TraceLikeRepository.class);
+    private final ReportRepository reportRepository = mock(ReportRepository.class);
+    private final UserService userService = new UserService(
+            userRepository,
+            fileService,
+            traceLikeRepository,
+            reportRepository
+    );
 
     @Test
     void getMyInfoThrowsUserNotFoundExceptionWhenUserDoesNotExist() {
@@ -108,5 +122,78 @@ class UserServiceTest {
                 "user@example.com",
                 UserUpdateRequestDto.builder().birthDate("991332").build()
         )).isInstanceOf(InvalidBirthDateException.class);
+    }
+
+    @Test
+    void withdrawLocalUserRequiresPasswordAndSoftDeletesAccount() {
+        UserEntity existingUser = UserEntity.builder()
+                .userId(7L)
+                .email("user@example.com")
+                .password(new BCryptPasswordEncoder().encode("password123"))
+                .nickname("old-name")
+                .profileImageUrl("/upload/profile/me.png")
+                .birthDate("990101")
+                .provider(LoginProvider.LOCAL)
+                .build();
+
+        when(userRepository.findByEmail("user@example.com")).thenReturn(Optional.of(existingUser));
+
+        UserWithdrawResponseDto response = userService.withdraw(
+                "user@example.com",
+                UserWithdrawRequestDto.builder().password("password123").build()
+        );
+
+        assertThat(response.isWithdrawn()).isTrue();
+        assertThat(response.getWithdrawnAt()).isNotNull();
+        assertThat(existingUser.getDeletedAt()).isNotNull();
+        assertThat(existingUser.getEmail()).startsWith("withdrawn-7-");
+        assertThat(existingUser.getPassword()).isNull();
+        assertThat(existingUser.getNickname()).isEqualTo("탈퇴한 사용자");
+        assertThat(existingUser.getProfileImageUrl()).isNull();
+        assertThat(existingUser.getBirthDate()).isNull();
+        verify(traceLikeRepository).deleteByUser_UserId(7L);
+        verify(reportRepository).deleteByUser_UserId(7L);
+    }
+
+    @Test
+    void withdrawLocalUserRejectsWrongPassword() {
+        UserEntity existingUser = UserEntity.builder()
+                .userId(7L)
+                .email("user@example.com")
+                .password(new BCryptPasswordEncoder().encode("password123"))
+                .nickname("old-name")
+                .provider(LoginProvider.LOCAL)
+                .build();
+
+        when(userRepository.findByEmail("user@example.com")).thenReturn(Optional.of(existingUser));
+
+        assertThatThrownBy(() -> userService.withdraw(
+                "user@example.com",
+                UserWithdrawRequestDto.builder().password("wrong-password").build()
+        )).isInstanceOf(AccountWithdrawalException.class);
+    }
+
+    @Test
+    void withdrawOAuthUserRequiresConfirmationPhraseInsteadOfPassword() {
+        UserEntity existingUser = UserEntity.builder()
+                .userId(8L)
+                .email("oauth@example.com")
+                .password(null)
+                .nickname("oauth-user")
+                .provider(LoginProvider.KAKAO)
+                .providerId("kakao-id")
+                .build();
+
+        when(userRepository.findByEmail("oauth@example.com")).thenReturn(Optional.of(existingUser));
+
+        UserWithdrawResponseDto response = userService.withdraw(
+                "oauth@example.com",
+                UserWithdrawRequestDto.builder().confirmation("회원탈퇴").build()
+        );
+
+        assertThat(response.isWithdrawn()).isTrue();
+        assertThat(existingUser.getProviderId()).isEqualTo("kakao-id");
+        verify(traceLikeRepository).deleteByUser_UserId(8L);
+        verify(reportRepository).deleteByUser_UserId(8L);
     }
 }

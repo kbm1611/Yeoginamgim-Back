@@ -17,4 +17,5 @@ public class UserInfoResponseDto {
     private String nickname;
     private String profileImageUrl;
     private String birthDate;
+    private String provider;
 }

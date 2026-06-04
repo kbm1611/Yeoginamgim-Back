@@ -3,14 +3,17 @@ package com.yeginamgim.user.controller;
 import com.yeginamgim.auth.jwt.JWTService;
 import com.yeginamgim.user.dto.request.UserSignupRequestDto;
 import com.yeginamgim.user.dto.request.UserUpdateRequestDto;
+import com.yeginamgim.user.dto.request.UserWithdrawRequestDto;
 import com.yeginamgim.user.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -40,5 +43,14 @@ public class UserController {
     ) {
         String email = jwtSvc.extractEmailFromBearerToken(token);
         return ResponseEntity.ok(userSvc.updateUserInfo(email, userUpdDto));
+    }
+
+    @DeleteMapping("/me")
+    public ResponseEntity<?> withdraw(
+            @RequestHeader(value = "Authorization", required = false) String token,
+            @RequestBody(required = false) UserWithdrawRequestDto request
+    ) {
+        String email = jwtSvc.extractEmailFromBearerToken(token);
+        return ResponseEntity.ok(userSvc.withdraw(email, request));
     }
 }

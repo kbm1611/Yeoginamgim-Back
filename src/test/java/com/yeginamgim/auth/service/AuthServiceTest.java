@@ -6,6 +6,7 @@ import com.yeginamgim.auth.jwt.JWTService;
 import com.yeginamgim.auth.dto.OAuthUserInfoDto;
 import com.yeginamgim.global.exception.DuplicateMemberException;
 import com.yeginamgim.global.exception.LoginFailedException;
+import com.yeginamgim.global.exception.OAuthLoginException;
 import com.yeginamgim.user.entity.UserEntity;
 import com.yeginamgim.user.enums.LoginProvider;
 import com.yeginamgim.user.repository.UserRepository;
@@ -141,5 +142,34 @@ class AuthServiceTest {
                 .isInstanceOf(DuplicateMemberException.class);
 
         verify(userRepository, never()).save(any(UserEntity.class));
+    }
+
+    @Test
+    void socialLoginRejectsWithdrawnOAuthAccount() {
+        OAuthUserInfoDto kakaoUser = new OAuthUserInfoDto(
+                LoginProvider.KAKAO,
+                "kakao-provider-id",
+                "kakao@example.com",
+                "kakao-user",
+                "/kakao.png"
+        );
+        UserEntity withdrawnUser = UserEntity.builder()
+                .userId(9L)
+                .email("kakao@example.com")
+                .nickname("kakao-user")
+                .provider(LoginProvider.KAKAO)
+                .providerId("kakao-provider-id")
+                .build();
+        withdrawnUser.withdraw();
+
+        when(kakaoOAuthClientService.fetchUserInfo("callback-code")).thenReturn(kakaoUser);
+        when(userRepository.findByProviderAndProviderId(LoginProvider.KAKAO, "kakao-provider-id"))
+                .thenReturn(Optional.of(withdrawnUser));
+
+        assertThatThrownBy(() -> authService.kakaoLogin("callback-code"))
+                .isInstanceOf(OAuthLoginException.class);
+
+        verify(userRepository, never()).save(any(UserEntity.class));
+        verify(jwtService, never()).createToken(any());
     }
 }

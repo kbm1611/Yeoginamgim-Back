@@ -59,6 +59,18 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
+    void accountWithdrawalExceptionReturnsBadRequest() {
+        GlobalExceptionHandler handler = new GlobalExceptionHandler();
+
+        ResponseEntity<String> response = handler.handleAccountWithdrawal(
+                new AccountWithdrawalException("invalid withdrawal")
+        );
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getBody()).isEqualTo("invalid withdrawal");
+    }
+
+    @Test
     void userNotFoundExceptionReturnsNotFound() {
         GlobalExceptionHandler handler = new GlobalExceptionHandler();
 

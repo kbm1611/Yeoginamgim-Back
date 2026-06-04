@@ -12,4 +12,6 @@ public interface TraceLikeRepository extends JpaRepository<TraceLike, Long> {
     long countByTrace_TraceId(Long traceId);
 
     void deleteByUser_UserIdAndTrace_TraceId(Long userId, Long traceId);
+
+    void deleteByUser_UserId(Long userId);
 }

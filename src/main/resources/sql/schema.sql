@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS users (
     birth_date VARCHAR(6) NULL,
     provider VARCHAR(30) NOT NULL,
     provider_id VARCHAR(100) NULL,
+    deleted_at DATETIME(6) NULL,
     created_at DATETIME(6) NULL,
     updated_at DATETIME(6) NULL,
     PRIMARY KEY (user_id),

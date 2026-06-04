@@ -43,6 +43,11 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
     }
 
+    @ExceptionHandler(AccountWithdrawalException.class)
+    public ResponseEntity<String> handleAccountWithdrawal(AccountWithdrawalException e) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+    }
+
     @ExceptionHandler(KakaoLocalApiException.class)
     public ResponseEntity<String> handleKakaoLocalApi(KakaoLocalApiException e) {
         return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(e.getMessage());
