@@ -37,10 +37,11 @@ public class PlaceController {
     public List<PopularPlaceResponse> getPopularPlaces(
             @RequestParam(defaultValue = "10") Integer limit,
             @RequestParam(required = false) String district,
+            @RequestParam(defaultValue = "today") String period,
             @RequestParam(required = false) Double latitude,
             @RequestParam(required = false) Double longitude,
             @RequestParam(required = false) Integer radius
     ) {
-        return placeService.getPopularPlaces(limit, district, latitude, longitude, radius);
+        return placeService.getPopularPlaces(limit, district, latitude, longitude, radius, period);
     }
 }

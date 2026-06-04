@@ -28,19 +28,19 @@ class PlaceControllerTest {
 
     @Test
     void popularPlacesAcceptDistrictQueryParameter() throws Exception {
-        when(placeService.getPopularPlaces(10, "강남구", null, null, null)).thenReturn(List.of());
+        when(placeService.getPopularPlaces(10, "Gangnam", null, null, null, "today")).thenReturn(List.of());
 
         mockMvc.perform(get("/api/places/popular")
-                        .param("district", "강남구")
+                        .param("district", "Gangnam")
                         .param("limit", "10"))
                 .andExpect(status().isOk());
 
-        verify(placeService).getPopularPlaces(10, "강남구", null, null, null);
+        verify(placeService).getPopularPlaces(10, "Gangnam", null, null, null, "today");
     }
 
     @Test
     void popularPlacesAcceptLocationQueryParameters() throws Exception {
-        when(placeService.getPopularPlaces(10, null, 37.5447, 127.0559, 20000)).thenReturn(List.of());
+        when(placeService.getPopularPlaces(10, null, 37.5447, 127.0559, 20000, "today")).thenReturn(List.of());
 
         mockMvc.perform(get("/api/places/popular")
                         .param("latitude", "37.5447")
@@ -49,7 +49,20 @@ class PlaceControllerTest {
                         .param("limit", "10"))
                 .andExpect(status().isOk());
 
-        verify(placeService).getPopularPlaces(10, null, 37.5447, 127.0559, 20000);
+        verify(placeService).getPopularPlaces(10, null, 37.5447, 127.0559, 20000, "today");
+    }
+
+    @Test
+    void popularPlacesAcceptPeriodQueryParameter() throws Exception {
+        when(placeService.getPopularPlaces(5, "Seongdong", null, null, null, "today")).thenReturn(List.of());
+
+        mockMvc.perform(get("/api/places/popular")
+                        .param("district", "Seongdong")
+                        .param("period", "today")
+                        .param("limit", "5"))
+                .andExpect(status().isOk());
+
+        verify(placeService).getPopularPlaces(5, "Seongdong", null, null, null, "today");
     }
 
     @Test
