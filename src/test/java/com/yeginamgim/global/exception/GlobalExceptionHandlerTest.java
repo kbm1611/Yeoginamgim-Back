@@ -24,6 +24,20 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
+    void emailVerificationMailExceptionReturnsBadGateway() {
+        GlobalExceptionHandler handler = new GlobalExceptionHandler();
+
+        ResponseEntity<ErrorResponse> response = handler.handleEmailVerificationMail(
+                new EmailVerificationMailException(new RuntimeException("mail failed"))
+        );
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_GATEWAY);
+        assertThat(response.getBody().code()).isEqualTo("EMAIL_VERIFICATION_MAIL_ERROR");
+        assertThat(response.getBody().message()).isEqualTo("이메일 인증번호 발송에 실패했습니다.");
+        assertThat(response.getBody().status()).isEqualTo(502);
+    }
+
+    @Test
     void invalidPlaceRequestExceptionReturnsBadRequest() {
         GlobalExceptionHandler handler = new GlobalExceptionHandler();
 

@@ -56,6 +56,11 @@ public class GlobalExceptionHandler {
         return error(HttpStatus.BAD_GATEWAY, "KAKAO_LOCAL_API_ERROR", e.getMessage());
     }
 
+    @ExceptionHandler(EmailVerificationMailException.class)
+    public ResponseEntity<ErrorResponse> handleEmailVerificationMail(EmailVerificationMailException e) {
+        return error(HttpStatus.BAD_GATEWAY, "EMAIL_VERIFICATION_MAIL_ERROR", e.getMessage());
+    }
+
     @ExceptionHandler(InvalidPlaceRequestException.class)
     public ResponseEntity<ErrorResponse> handleInvalidPlaceRequest(InvalidPlaceRequestException e) {
         return error(HttpStatus.BAD_REQUEST, "INVALID_PLACE_REQUEST", e.getMessage());
