@@ -24,31 +24,55 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
-    void emailVerificationMailExceptionReturnsBadGateway() {
+    void emailVerificationMailExceptionReturnsInternalServerError() {
         GlobalExceptionHandler handler = new GlobalExceptionHandler();
 
         ResponseEntity<ErrorResponse> response = handler.handleEmailVerificationMail(
                 new EmailVerificationMailException(new RuntimeException("mail failed"))
         );
 
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_GATEWAY);
-        assertThat(response.getBody().code()).isEqualTo("EMAIL_VERIFICATION_MAIL_ERROR");
-        assertThat(response.getBody().message()).isEqualTo("이메일 인증번호 발송에 실패했습니다.");
-        assertThat(response.getBody().status()).isEqualTo(502);
+        assertEmailVerificationError(
+                response,
+                HttpStatus.INTERNAL_SERVER_ERROR,
+                "EMAIL_VERIFICATION_MAIL_ERROR",
+                "이메일 인증번호 발송에 실패했습니다."
+        );
     }
 
     @Test
-    void emailVerificationExceptionUsesExceptionStatusAndCode() {
+    void emailVerificationExceptionsUseStandardErrorResponse() {
         GlobalExceptionHandler handler = new GlobalExceptionHandler();
 
-        ResponseEntity<ErrorResponse> response = handler.handleEmailVerification(
-                EmailVerificationException.cooldown()
+        assertEmailVerificationError(
+                handler.handleEmailVerification(EmailVerificationException.expired()),
+                HttpStatus.BAD_REQUEST,
+                "EMAIL_VERIFICATION_EXPIRED",
+                "인증번호가 만료되었습니다. 다시 요청해 주세요."
         );
-
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.TOO_MANY_REQUESTS);
-        assertThat(response.getBody().code()).isEqualTo("EMAIL_VERIFICATION_COOLDOWN");
-        assertThat(response.getBody().message()).isEqualTo("인증번호 재발송은 60초 후에 가능합니다.");
-        assertThat(response.getBody().status()).isEqualTo(429);
+        assertEmailVerificationError(
+                handler.handleEmailVerification(EmailVerificationException.invalidCode()),
+                HttpStatus.BAD_REQUEST,
+                "EMAIL_VERIFICATION_INVALID_CODE",
+                "인증번호가 일치하지 않습니다."
+        );
+        assertEmailVerificationError(
+                handler.handleEmailVerification(EmailVerificationException.attemptsExceeded()),
+                HttpStatus.TOO_MANY_REQUESTS,
+                "EMAIL_VERIFICATION_ATTEMPTS_EXCEEDED",
+                "인증번호 입력 횟수를 초과했습니다. 다시 요청해 주세요."
+        );
+        assertEmailVerificationError(
+                handler.handleEmailVerification(EmailVerificationException.cooldown()),
+                HttpStatus.TOO_MANY_REQUESTS,
+                "EMAIL_VERIFICATION_COOLDOWN",
+                "인증번호 재발송은 60초 후에 가능합니다."
+        );
+        assertEmailVerificationError(
+                handler.handleEmailVerification(EmailVerificationException.required()),
+                HttpStatus.BAD_REQUEST,
+                "EMAIL_VERIFICATION_REQUIRED",
+                "이메일 인증이 필요합니다."
+        );
     }
 
     @Test
@@ -169,6 +193,18 @@ class GlobalExceptionHandlerTest {
         assertThat(response.getBody().code()).isEqualTo("VALIDATION_ERROR");
         assertThat(response.getBody().message()).isEqualTo("email is required.");
         assertThat(response.getBody().status()).isEqualTo(400);
+    }
+
+    private void assertEmailVerificationError(
+            ResponseEntity<ErrorResponse> response,
+            HttpStatus status,
+            String code,
+            String message
+    ) {
+        assertThat(response.getStatusCode()).isEqualTo(status);
+        assertThat(response.getBody().code()).isEqualTo(code);
+        assertThat(response.getBody().message()).isEqualTo(message);
+        assertThat(response.getBody().status()).isEqualTo(status.value());
     }
 
     private static class ValidationRequest {

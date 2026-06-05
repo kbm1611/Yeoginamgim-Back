@@ -58,7 +58,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(EmailVerificationMailException.class)
     public ResponseEntity<ErrorResponse> handleEmailVerificationMail(EmailVerificationMailException e) {
-        return error(HttpStatus.BAD_GATEWAY, "EMAIL_VERIFICATION_MAIL_ERROR", e.getMessage());
+        return error(HttpStatus.INTERNAL_SERVER_ERROR, "EMAIL_VERIFICATION_MAIL_ERROR", e.getMessage());
     }
 
     @ExceptionHandler(EmailVerificationException.class)
