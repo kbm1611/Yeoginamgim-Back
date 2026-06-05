@@ -5,27 +5,43 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
+import java.util.Locale;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
 public class FileService {
     private static final long MAX_FILE_SIZE = 5 * 1024 * 1024;
-    private static final String FILE_SIZE_EXCEEDED_MESSAGE = "파일 크기는 5MB를 초과할 수 없습니다.";
     private static final String PROFILE_URL_PREFIX = "/upload/profile/";
+    private static final Set<String> ALLOWED_IMAGE_CONTENT_TYPES = Set.of(
+            "image/jpeg",
+            "image/png",
+            "image/webp"
+    );
 
-    private final Path uploadRoot = Path.of(System.getProperty("user.dir"), "uploads");
-    private final Path profileUploadDir = uploadRoot.resolve("profile");
-    private final Path boardUploadDir = uploadRoot.resolve("board");
+    private final Path uploadRoot;
+    private final Path profileUploadDir;
+    private final Path boardUploadDir;
 
-    // [1] 프로필 업로드
-    public String profileUpload(MultipartFile uploadFile){
+    public FileService() {
+        this(Path.of(System.getProperty("user.dir"), "uploads"));
+    }
+
+    FileService(Path uploadRoot) {
+        this.uploadRoot = uploadRoot.toAbsolutePath().normalize();
+        this.profileUploadDir = this.uploadRoot.resolve("profile").normalize();
+        this.boardUploadDir = this.uploadRoot.resolve("board").normalize();
+    }
+
+    public String profileUpload(MultipartFile uploadFile) {
         return upload(uploadFile, profileUploadDir);
     }
 
-    // [2] 보드이미지 업로드
-    public String boardUpload(MultipartFile uploadFile){
+    public String boardUpload(MultipartFile uploadFile) {
         return upload(uploadFile, boardUploadDir);
     }
 
@@ -35,7 +51,12 @@ public class FileService {
         String fileName = profileImageUrl.substring(PROFILE_URL_PREFIX.length());
         if (fileName.isBlank()) return;
 
-        String safeFileName = Path.of(fileName).getFileName().toString();
+        String safeFileName;
+        try {
+            safeFileName = Path.of(fileName).getFileName().toString();
+        } catch (InvalidPathException e) {
+            return;
+        }
         Path deletePath = profileUploadDir.resolve(safeFileName).normalize();
 
         if (!deletePath.startsWith(profileUploadDir)) return;
@@ -49,22 +70,112 @@ public class FileService {
 
     private String upload(MultipartFile uploadFile, Path uploadDir) {
         if (uploadFile == null || uploadFile.isEmpty()) return null;
-        if (uploadFile.getSize() > MAX_FILE_SIZE) throw new FileUploadException(FILE_SIZE_EXCEEDED_MESSAGE);
+        if (uploadFile.getSize() > MAX_FILE_SIZE) throw FileUploadException.fileTooLarge();
 
-        String uuid = UUID.randomUUID().toString();
-        String originalFilename = uploadFile.getOriginalFilename();
-        String safeOriginalFilename = originalFilename == null ? "file" : Path.of(originalFilename).getFileName().toString().replaceAll("_", "-");
-        String fileName = uuid + "_" + safeOriginalFilename;
-        Path uploadRealPath = uploadDir.resolve(fileName).normalize();
+        String contentType = normalizeContentType(uploadFile.getContentType());
+        if (!ALLOWED_IMAGE_CONTENT_TYPES.contains(contentType)) {
+            throw FileUploadException.unsupportedFileType();
+        }
+        validateImageSignature(uploadFile, contentType);
 
-        if (!uploadRealPath.startsWith(uploadDir)) return null;
+        String fileName = UUID.randomUUID() + "_" + safeOriginalFilename(uploadFile.getOriginalFilename());
+        Path safeUploadDir = uploadDir.toAbsolutePath().normalize();
+        Path uploadRealPath = safeUploadDir.resolve(fileName).normalize();
+
+        if (!uploadRealPath.startsWith(safeUploadDir)) {
+            throw FileUploadException.uploadFailed();
+        }
 
         try {
-            Files.createDirectories(uploadDir);
+            Files.createDirectories(safeUploadDir);
             uploadFile.transferTo(uploadRealPath.toFile());
             return fileName;
         } catch (IOException e) {
-            throw new FileUploadException("file upload failed.");
+            throw FileUploadException.uploadFailed();
         }
+    }
+
+    private String normalizeContentType(String contentType) {
+        if (contentType == null) {
+            return "";
+        }
+        return contentType.split(";", 2)[0].trim().toLowerCase(Locale.ROOT);
+    }
+
+    private void validateImageSignature(MultipartFile uploadFile, String contentType) {
+        byte[] header = new byte[12];
+        int read;
+
+        try (InputStream inputStream = uploadFile.getInputStream()) {
+            read = readHeader(inputStream, header);
+        } catch (IOException e) {
+            throw FileUploadException.invalidImageFile();
+        }
+
+        if (!hasImageSignature(header, read, contentType)) {
+            throw FileUploadException.invalidImageFile();
+        }
+    }
+
+    private int readHeader(InputStream inputStream, byte[] header) throws IOException {
+        int totalRead = 0;
+        while (totalRead < header.length) {
+            int currentRead = inputStream.read(header, totalRead, header.length - totalRead);
+            if (currentRead == -1) {
+                break;
+            }
+            totalRead += currentRead;
+        }
+        return totalRead;
+    }
+
+    private boolean hasImageSignature(byte[] header, int read, String contentType) {
+        return switch (contentType) {
+            case "image/jpeg" -> read >= 3
+                    && (header[0] & 0xFF) == 0xFF
+                    && (header[1] & 0xFF) == 0xD8
+                    && (header[2] & 0xFF) == 0xFF;
+            case "image/png" -> read >= 8
+                    && (header[0] & 0xFF) == 0x89
+                    && header[1] == 0x50
+                    && header[2] == 0x4E
+                    && header[3] == 0x47
+                    && header[4] == 0x0D
+                    && header[5] == 0x0A
+                    && header[6] == 0x1A
+                    && header[7] == 0x0A;
+            case "image/webp" -> read >= 12
+                    && header[0] == 0x52
+                    && header[1] == 0x49
+                    && header[2] == 0x46
+                    && header[3] == 0x46
+                    && header[8] == 0x57
+                    && header[9] == 0x45
+                    && header[10] == 0x42
+                    && header[11] == 0x50;
+            default -> false;
+        };
+    }
+
+    private String safeOriginalFilename(String originalFilename) {
+        String baseName = "file";
+
+        if (originalFilename != null && !originalFilename.isBlank()) {
+            try {
+                String normalizedSeparators = originalFilename.replace('\\', '/');
+                String rawBaseName = normalizedSeparators.substring(normalizedSeparators.lastIndexOf('/') + 1);
+                baseName = Path.of(rawBaseName).getFileName().toString();
+            } catch (InvalidPathException e) {
+                baseName = "file";
+            }
+        }
+
+        String sanitized = baseName
+                .replaceAll("[^A-Za-z0-9._-]", "-")
+                .replaceAll("-+", "-")
+                .replaceAll("^[.\\-]+", "")
+                .replaceAll("[.\\-]+$", "");
+
+        return sanitized.isBlank() ? "file" : sanitized;
     }
 }
