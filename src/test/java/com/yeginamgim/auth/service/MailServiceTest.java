@@ -11,17 +11,22 @@ import java.time.Duration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 class MailServiceTest {
 
     private final JavaMailSender mailSender = mock(JavaMailSender.class);
-    private final MailService mailService = new MailService(mailSender);
+    private final EmailDomainValidator emailDomainValidator = mock(EmailDomainValidator.class);
+    private final MailService mailService = new MailService(mailSender, emailDomainValidator);
 
     @Test
     void sendVerificationCodeSendsKoreanMailWithCodeAndExpiration() {
+        when(emailDomainValidator.canReceiveMail("user@example.com")).thenReturn(true);
+
         mailService.sendVerificationCode("user@example.com", "123456", Duration.ofMinutes(5));
 
         ArgumentCaptor<SimpleMailMessage> messageCaptor = ArgumentCaptor.forClass(SimpleMailMessage.class);
@@ -35,6 +40,7 @@ class MailServiceTest {
 
     @Test
     void sendVerificationCodeThrowsConsistentExceptionWhenMailSendingFails() {
+        when(emailDomainValidator.canReceiveMail("user@example.com")).thenReturn(true);
         doThrow(new MailSendException("mail failed")).when(mailSender).send(org.mockito.ArgumentMatchers.any(SimpleMailMessage.class));
 
         assertThatThrownBy(() -> mailService.sendVerificationCode(
@@ -43,5 +49,19 @@ class MailServiceTest {
                 Duration.ofMinutes(5)
         )).isInstanceOf(EmailVerificationMailException.class)
                 .hasMessage("이메일 인증번호 발송에 실패했습니다.");
+    }
+
+    @Test
+    void sendVerificationCodeRejectsRecipientWhenDomainCannotReceiveMail() {
+        when(emailDomainValidator.canReceiveMail("user@missing-domain.invalid")).thenReturn(false);
+
+        assertThatThrownBy(() -> mailService.sendVerificationCode(
+                "user@missing-domain.invalid",
+                "123456",
+                Duration.ofMinutes(5)
+        )).isInstanceOf(EmailVerificationMailException.class)
+                .hasMessage("이메일 인증번호 발송에 실패했습니다.");
+
+        verify(mailSender, never()).send(org.mockito.ArgumentMatchers.any(SimpleMailMessage.class));
     }
 }

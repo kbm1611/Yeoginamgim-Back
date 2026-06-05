@@ -15,10 +15,16 @@ public class MailService {
     private static final String VERIFICATION_SUBJECT = "[여기남김] 이메일 인증번호 안내";
 
     private final JavaMailSender mailSender;
+    private final EmailDomainValidator emailDomainValidator;
 
     public void sendVerificationCode(String email, String code, Duration expiresIn) {
+        String recipient = email.trim();
+        if (!emailDomainValidator.canReceiveMail(recipient)) {
+            throw new EmailVerificationMailException(new IllegalArgumentException("Email domain cannot receive mail."));
+        }
+
         SimpleMailMessage message = new SimpleMailMessage();
-        message.setTo(email.trim());
+        message.setTo(recipient);
         message.setSubject(VERIFICATION_SUBJECT);
         message.setText(buildVerificationText(code, expiresIn));
 
