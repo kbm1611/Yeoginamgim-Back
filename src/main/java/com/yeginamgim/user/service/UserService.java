@@ -40,6 +40,7 @@ public class UserService {
 
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
+    // 회원가입
     @Transactional
     public UserSignupResponseDto signup(UserSignupRequestDto userReqDto) {
         if (userRepo.findByEmail(userReqDto.getEmail()).isPresent()) {
@@ -73,6 +74,7 @@ public class UserService {
         }
     }
 
+    // 유저 정보 확인
     @Transactional(readOnly = true)
     public UserInfoResponseDto getMyInfo(String email) {
         UserEntity userEntity = userRepo.findByEmail(email)
@@ -81,6 +83,7 @@ public class UserService {
         return userEntity.toInfoDto();
     }
 
+    // 유저 정보 수정
     @Transactional
     public UserInfoResponseDto updateUserInfo(String email, UserUpdateRequestDto userUpdDto) {
         UserEntity userEntity = userRepo.findByEmail(email)
@@ -104,6 +107,7 @@ public class UserService {
         return userEntity.toInfoDto();
     }
 
+    // 회원 탈퇴
     @Transactional
     public UserWithdrawResponseDto withdraw(String email, UserWithdrawRequestDto request) {
         UserEntity userEntity = userRepo.findByEmail(email)
@@ -119,6 +123,7 @@ public class UserService {
         return UserWithdrawResponseDto.of(userEntity.getDeletedAt());
     }
 
+    // 회원탈퇴 검증
     private void validateWithdrawalRequest(UserEntity userEntity, UserWithdrawRequestDto request) {
         if (request == null) {
             throw new AccountWithdrawalException("회원 탈퇴 확인 정보가 필요합니다.");
@@ -132,6 +137,7 @@ public class UserService {
         validateOAuthWithdrawal(request.getConfirmation());
     }
 
+    // 로컬 회원
     private void validateLocalWithdrawal(UserEntity userEntity, String password) {
         if (!StringUtils.hasText(password)
                 || userEntity.getPassword() == null
@@ -140,12 +146,14 @@ public class UserService {
         }
     }
 
+    // 소셜 회원
     private void validateOAuthWithdrawal(String confirmation) {
         if (!WITHDRAWAL_CONFIRMATION.equals(confirmation == null ? null : confirmation.trim())) {
             throw new AccountWithdrawalException("회원 탈퇴 확인 문구를 입력해주세요.");
         }
     }
 
+    // 생일 정규화
     private String normalizeBirthDate(String birthDate) {
         if (!StringUtils.hasText(birthDate)) {
             return null;
@@ -160,6 +168,7 @@ public class UserService {
         return normalizedBirthDate;
     }
 
+    // 생일이 존재하는 지 확인하는 함수
     private boolean isActualBirthDate(String birthDate) {
         int year = Integer.parseInt(birthDate.substring(0, 2));
         int month = Integer.parseInt(birthDate.substring(2, 4));
