@@ -92,6 +92,15 @@ class EmailVerificationRedisServiceTest {
     }
 
     @Test
+    void hasVerificationCodeAndGetFailedAttemptsUseNormalizedKeys() {
+        when(redisTemplate.hasKey("email:verify:code:user@example.com")).thenReturn(true);
+        when(valueOperations.get("email:verify:attempts:user@example.com")).thenReturn("3");
+
+        assertThat(service.hasVerificationCode(" USER@example.COM ")).isTrue();
+        assertThat(service.getFailedAttempts(" USER@example.COM ")).isEqualTo(3L);
+    }
+
+    @Test
     void clearVerificationStateDeletesAllVerificationKeys() {
         service.clearVerificationState(" USER@example.COM ");
 

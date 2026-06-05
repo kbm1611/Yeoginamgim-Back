@@ -61,6 +61,11 @@ public class GlobalExceptionHandler {
         return error(HttpStatus.BAD_GATEWAY, "EMAIL_VERIFICATION_MAIL_ERROR", e.getMessage());
     }
 
+    @ExceptionHandler(EmailVerificationException.class)
+    public ResponseEntity<ErrorResponse> handleEmailVerification(EmailVerificationException e) {
+        return error(e.getStatus(), e.getCode(), e.getMessage());
+    }
+
     @ExceptionHandler(InvalidPlaceRequestException.class)
     public ResponseEntity<ErrorResponse> handleInvalidPlaceRequest(InvalidPlaceRequestException e) {
         return error(HttpStatus.BAD_REQUEST, "INVALID_PLACE_REQUEST", e.getMessage());

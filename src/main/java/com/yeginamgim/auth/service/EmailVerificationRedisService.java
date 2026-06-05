@@ -60,6 +60,23 @@ public class EmailVerificationRedisService {
         return Boolean.TRUE.equals(redisTemplate.hasKey(cooldownKey(normalizeEmail(email))));
     }
 
+    public boolean hasVerificationCode(String email) {
+        return Boolean.TRUE.equals(redisTemplate.hasKey(codeKey(normalizeEmail(email))));
+    }
+
+    public long getFailedAttempts(String email) {
+        String attempts = redisTemplate.opsForValue().get(attemptsKey(normalizeEmail(email)));
+        if (attempts == null || attempts.isBlank()) {
+            return 0L;
+        }
+
+        try {
+            return Long.parseLong(attempts);
+        } catch (NumberFormatException e) {
+            return 0L;
+        }
+    }
+
     public void clearVerificationState(String email) {
         String normalizedEmail = normalizeEmail(email);
         redisTemplate.delete(Set.of(

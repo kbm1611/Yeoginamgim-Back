@@ -38,6 +38,20 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
+    void emailVerificationExceptionUsesExceptionStatusAndCode() {
+        GlobalExceptionHandler handler = new GlobalExceptionHandler();
+
+        ResponseEntity<ErrorResponse> response = handler.handleEmailVerification(
+                EmailVerificationException.cooldown()
+        );
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.TOO_MANY_REQUESTS);
+        assertThat(response.getBody().code()).isEqualTo("EMAIL_VERIFICATION_COOLDOWN");
+        assertThat(response.getBody().message()).isEqualTo("인증번호 재발송은 60초 후에 가능합니다.");
+        assertThat(response.getBody().status()).isEqualTo(429);
+    }
+
+    @Test
     void invalidPlaceRequestExceptionReturnsBadRequest() {
         GlobalExceptionHandler handler = new GlobalExceptionHandler();
 

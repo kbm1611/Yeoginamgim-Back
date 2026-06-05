@@ -1,10 +1,14 @@
 package com.yeginamgim.auth.service;
 
+import com.yeginamgim.auth.dto.request.EmailVerificationSendRequest;
+import com.yeginamgim.auth.dto.request.EmailVerificationVerifyRequest;
 import com.yeginamgim.auth.dto.request.LoginRequestDto;
+import com.yeginamgim.auth.dto.response.EmailVerificationResponse;
 import com.yeginamgim.auth.dto.response.LoginResponseDto;
 import com.yeginamgim.auth.jwt.JWTService;
 import com.yeginamgim.auth.dto.OAuthUserInfoDto;
 import com.yeginamgim.global.exception.DuplicateMemberException;
+import com.yeginamgim.global.exception.EmailVerificationException;
 import com.yeginamgim.global.exception.LoginFailedException;
 import com.yeginamgim.global.exception.OAuthLoginException;
 import com.yeginamgim.user.entity.UserEntity;
@@ -29,12 +33,123 @@ class AuthServiceTest {
     private final JWTService jwtService = mock(JWTService.class);
     private final KakaoOAuthClientService kakaoOAuthClientService = mock(KakaoOAuthClientService.class);
     private final GoogleOAuthClientService googleOAuthClientService = mock(GoogleOAuthClientService.class);
+    private final EmailVerificationRedisService emailVerificationRedisService = mock(EmailVerificationRedisService.class);
+    private final MailService mailService = mock(MailService.class);
     private final AuthService authService = new AuthService(
             userRepository,
             jwtService,
             kakaoOAuthClientService,
-            googleOAuthClientService
+            googleOAuthClientService,
+            emailVerificationRedisService,
+            mailService
     );
+
+    @Test
+    void sendEmailVerificationRejectsDuplicateEmail() {
+        UserEntity existingUser = UserEntity.builder()
+                .email("user@example.com")
+                .nickname("user")
+                .provider(LoginProvider.LOCAL)
+                .build();
+        when(userRepository.findByEmail("user@example.com")).thenReturn(Optional.of(existingUser));
+        EmailVerificationSendRequest request = EmailVerificationSendRequest.builder()
+                .email(" USER@example.COM ")
+                .build();
+
+        assertThatThrownBy(() -> authService.sendEmailVerification(request))
+                .isInstanceOf(DuplicateMemberException.class);
+
+        verify(emailVerificationRedisService, never()).storeVerificationCode(any(), any());
+    }
+
+    @Test
+    void sendEmailVerificationRejectsCooldown() {
+        when(userRepository.findByEmail("user@example.com")).thenReturn(Optional.empty());
+        when(emailVerificationRedisService.hasCooldown("user@example.com")).thenReturn(true);
+        EmailVerificationSendRequest request = EmailVerificationSendRequest.builder()
+                .email(" USER@example.COM ")
+                .build();
+
+        assertThatThrownBy(() -> authService.sendEmailVerification(request))
+                .isInstanceOf(EmailVerificationException.class)
+                .hasMessage("인증번호 재발송은 60초 후에 가능합니다.");
+    }
+
+    @Test
+    void sendEmailVerificationStoresCodeAndSendsMail() {
+        when(userRepository.findByEmail("user@example.com")).thenReturn(Optional.empty());
+        EmailVerificationSendRequest request = EmailVerificationSendRequest.builder()
+                .email(" USER@example.COM ")
+                .build();
+
+        EmailVerificationResponse response = authService.sendEmailVerification(request);
+
+        assertThat(response.isVerified()).isFalse();
+        assertThat(response.getMessage()).isEqualTo("인증번호가 이메일로 발송되었습니다.");
+        verify(emailVerificationRedisService).storeVerificationCode(org.mockito.ArgumentMatchers.eq("user@example.com"), org.mockito.ArgumentMatchers.matches("\\d{6}"));
+        verify(mailService).sendVerificationCode(org.mockito.ArgumentMatchers.eq("user@example.com"), org.mockito.ArgumentMatchers.matches("\\d{6}"), org.mockito.ArgumentMatchers.eq(java.time.Duration.ofMinutes(5)));
+    }
+
+    @Test
+    void verifyEmailVerificationRejectsExpiredCode() {
+        when(emailVerificationRedisService.hasVerificationCode("user@example.com")).thenReturn(false);
+        EmailVerificationVerifyRequest request = EmailVerificationVerifyRequest.builder()
+                .email(" USER@example.COM ")
+                .code("123456")
+                .build();
+
+        assertThatThrownBy(() -> authService.verifyEmailVerification(request))
+                .isInstanceOf(EmailVerificationException.class)
+                .hasMessage("인증번호가 만료되었습니다. 다시 요청해 주세요.");
+    }
+
+    @Test
+    void verifyEmailVerificationRejectsTooManyAttemptsBeforeCheckingCode() {
+        when(emailVerificationRedisService.hasVerificationCode("user@example.com")).thenReturn(true);
+        when(emailVerificationRedisService.getFailedAttempts("user@example.com")).thenReturn(5L);
+        EmailVerificationVerifyRequest request = EmailVerificationVerifyRequest.builder()
+                .email("user@example.com")
+                .code("123456")
+                .build();
+
+        assertThatThrownBy(() -> authService.verifyEmailVerification(request))
+                .isInstanceOf(EmailVerificationException.class)
+                .hasMessage("인증번호 입력 횟수를 초과했습니다. 다시 요청해 주세요.");
+
+        verify(emailVerificationRedisService, never()).verifyCode(any(), any());
+    }
+
+    @Test
+    void verifyEmailVerificationRejectsMismatchedCodeAndLimitsAttempts() {
+        when(emailVerificationRedisService.hasVerificationCode("user@example.com")).thenReturn(true);
+        when(emailVerificationRedisService.getFailedAttempts("user@example.com")).thenReturn(0L, 5L);
+        when(emailVerificationRedisService.verifyCode("user@example.com", "000000")).thenReturn(false);
+        EmailVerificationVerifyRequest request = EmailVerificationVerifyRequest.builder()
+                .email("user@example.com")
+                .code("000000")
+                .build();
+
+        assertThatThrownBy(() -> authService.verifyEmailVerification(request))
+                .isInstanceOf(EmailVerificationException.class)
+                .hasMessage("인증번호 입력 횟수를 초과했습니다. 다시 요청해 주세요.");
+    }
+
+    @Test
+    void verifyEmailVerificationStoresVerifiedStateThroughRedisService() {
+        when(emailVerificationRedisService.hasVerificationCode("user@example.com")).thenReturn(true);
+        when(emailVerificationRedisService.getFailedAttempts("user@example.com")).thenReturn(0L);
+        when(emailVerificationRedisService.verifyCode("user@example.com", "123456")).thenReturn(true);
+        EmailVerificationVerifyRequest request = EmailVerificationVerifyRequest.builder()
+                .email(" USER@example.COM ")
+                .code("123456")
+                .build();
+
+        EmailVerificationResponse response = authService.verifyEmailVerification(request);
+
+        assertThat(response.isVerified()).isTrue();
+        assertThat(response.getMessage()).isEqualTo("이메일 인증이 완료되었습니다.");
+        verify(emailVerificationRedisService).verifyCode("user@example.com", "123456");
+    }
 
     @Test
     void loginRejectsSocialAccountEvenWhenPasswordExists() {

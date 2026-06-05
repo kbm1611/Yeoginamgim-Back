@@ -1,5 +1,7 @@
 package com.yeginamgim.auth.controller;
 
+import com.yeginamgim.auth.dto.request.EmailVerificationSendRequest;
+import com.yeginamgim.auth.dto.request.EmailVerificationVerifyRequest;
 import com.yeginamgim.auth.dto.request.LoginRequestDto;
 import com.yeginamgim.auth.dto.response.LoginResponseDto;
 import com.yeginamgim.auth.service.AuthService;
@@ -35,6 +37,20 @@ public class AuthController {
     public ResponseEntity<?> login(@Valid @RequestBody LoginRequestDto loginReqDto) {
         LoginResponseDto result = authSvc.login(loginReqDto);
         return ResponseEntity.ok(result);
+    }
+
+    @PostMapping("/email/send")
+    public ResponseEntity<?> sendEmailVerification(
+            @Valid @RequestBody EmailVerificationSendRequest request
+    ) {
+        return ResponseEntity.ok(authSvc.sendEmailVerification(request));
+    }
+
+    @PostMapping("/email/verify")
+    public ResponseEntity<?> verifyEmailVerification(
+            @Valid @RequestBody EmailVerificationVerifyRequest request
+    ) {
+        return ResponseEntity.ok(authSvc.verifyEmailVerification(request));
     }
 
     // 카카오 OAuth 인증 페이지로 리다이렉트한다.

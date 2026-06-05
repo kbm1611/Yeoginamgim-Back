@@ -1,11 +1,15 @@
 package com.yeginamgim.auth.controller;
 
+import com.yeginamgim.auth.dto.request.EmailVerificationSendRequest;
+import com.yeginamgim.auth.dto.request.EmailVerificationVerifyRequest;
+import com.yeginamgim.auth.dto.response.EmailVerificationResponse;
 import com.yeginamgim.auth.dto.response.LoginResponseDto;
 import com.yeginamgim.auth.service.AuthService;
 import com.yeginamgim.global.exception.DuplicateMemberException;
 import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.http.ResponseEntity;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -18,6 +22,41 @@ class AuthControllerTest {
 
     private final AuthService authService = mock(AuthService.class);
     private final AuthController authController = new AuthController(authService);
+
+    @Test
+    void sendEmailVerificationDelegatesToAuthService() {
+        EmailVerificationSendRequest request = EmailVerificationSendRequest.builder()
+                .email("user@example.com")
+                .build();
+        EmailVerificationResponse serviceResponse = EmailVerificationResponse.builder()
+                .message("인증번호가 이메일로 발송되었습니다.")
+                .verified(false)
+                .build();
+        when(authService.sendEmailVerification(request)).thenReturn(serviceResponse);
+
+        ResponseEntity<?> response = authController.sendEmailVerification(request);
+
+        assertThat(response.getBody()).isEqualTo(serviceResponse);
+        verify(authService).sendEmailVerification(request);
+    }
+
+    @Test
+    void verifyEmailVerificationDelegatesToAuthService() {
+        EmailVerificationVerifyRequest request = EmailVerificationVerifyRequest.builder()
+                .email("user@example.com")
+                .code("123456")
+                .build();
+        EmailVerificationResponse serviceResponse = EmailVerificationResponse.builder()
+                .message("이메일 인증이 완료되었습니다.")
+                .verified(true)
+                .build();
+        when(authService.verifyEmailVerification(request)).thenReturn(serviceResponse);
+
+        ResponseEntity<?> response = authController.verifyEmailVerification(request);
+
+        assertThat(response.getBody()).isEqualTo(serviceResponse);
+        verify(authService).verifyEmailVerification(request);
+    }
 
     @Test
     void kakaoCallbackRedirectsToFrontendCallbackWithToken() throws Exception {
