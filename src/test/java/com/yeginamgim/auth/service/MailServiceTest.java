@@ -52,7 +52,7 @@ class MailServiceTest {
     }
 
     @Test
-    void sendVerificationCodeRejectsRecipientWhenDomainCannotReceiveMail() {
+    void sendVerificationCodeRejectsRecipientWhenRecipientCannotReceiveMail() {
         when(emailDomainValidator.canReceiveMail("user@missing-domain.invalid")).thenReturn(false);
 
         assertThatThrownBy(() -> mailService.sendVerificationCode(

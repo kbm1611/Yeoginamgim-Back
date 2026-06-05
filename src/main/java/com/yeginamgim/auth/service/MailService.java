@@ -20,7 +20,7 @@ public class MailService {
     public void sendVerificationCode(String email, String code, Duration expiresIn) {
         String recipient = email.trim();
         if (!emailDomainValidator.canReceiveMail(recipient)) {
-            throw new EmailVerificationMailException(new IllegalArgumentException("Email domain cannot receive mail."));
+            throw new EmailVerificationMailException(new IllegalArgumentException("Email recipient cannot receive mail."));
         }
 
         SimpleMailMessage message = new SimpleMailMessage();
