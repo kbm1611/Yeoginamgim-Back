@@ -3,6 +3,8 @@ package com.yeginamgim.auth.controller;
 import com.yeginamgim.auth.dto.request.LoginRequestDto;
 import com.yeginamgim.auth.dto.response.LoginResponseDto;
 import com.yeginamgim.auth.service.AuthService;
+import com.yeginamgim.global.exception.DuplicateMemberException;
+import com.yeginamgim.global.exception.OAuthLoginException;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -43,8 +45,21 @@ public class AuthController {
 
     // 카카오 OAuth callback code로 로그인하거나 가입 처리한 뒤 JWT를 반환한다.
     @GetMapping("/oauth/kakao/callback")
-    public void kakaoCallback(@RequestParam String code, HttpServletResponse response) throws IOException {
-        redirectToFrontendOAuthCallback(response, authSvc.kakaoLogin(code));
+    public void kakaoCallback(
+            @RequestParam(name = "code", required = false) String code,
+            @RequestParam(name = "error", required = false) String error,
+            HttpServletResponse response
+    ) throws IOException {
+        if (hasText(error) || !hasText(code)) {
+            redirectToFrontendOAuthCallbackError(response, hasText(error) ? error : "소셜 로그인에 실패했습니다.");
+            return;
+        }
+
+        try {
+            redirectToFrontendOAuthCallback(response, authSvc.kakaoLogin(code));
+        } catch (DuplicateMemberException | OAuthLoginException e) {
+            redirectToFrontendOAuthCallbackError(response, e.getMessage());
+        }
     }
 
     // 구글 OAuth 인증 페이지로 리다이렉트한다.
@@ -55,8 +70,21 @@ public class AuthController {
 
     // 구글 OAuth callback code로 로그인하거나 가입 처리한 뒤 JWT를 반환한다.
     @GetMapping("/oauth/google/callback")
-    public void googleCallback(@RequestParam String code, HttpServletResponse response) throws IOException {
-        redirectToFrontendOAuthCallback(response, authSvc.googleLogin(code));
+    public void googleCallback(
+            @RequestParam(name = "code", required = false) String code,
+            @RequestParam(name = "error", required = false) String error,
+            HttpServletResponse response
+    ) throws IOException {
+        if (hasText(error) || !hasText(code)) {
+            redirectToFrontendOAuthCallbackError(response, hasText(error) ? error : "소셜 로그인에 실패했습니다.");
+            return;
+        }
+
+        try {
+            redirectToFrontendOAuthCallback(response, authSvc.googleLogin(code));
+        } catch (DuplicateMemberException | OAuthLoginException e) {
+            redirectToFrontendOAuthCallbackError(response, e.getMessage());
+        }
     }
 
     // 클라이언트가 보유한 JWT를 폐기하도록 성공 응답만 반환한다.
@@ -67,10 +95,25 @@ public class AuthController {
 
     private void redirectToFrontendOAuthCallback(HttpServletResponse response, LoginResponseDto loginResponse)
             throws IOException {
-        String baseUrl = frontendBaseUrl.endsWith("/")
-                ? frontendBaseUrl.substring(0, frontendBaseUrl.length() - 1)
-                : frontendBaseUrl;
+        String baseUrl = normalizeFrontendBaseUrl();
         String token = UriUtils.encode(loginResponse.getToken(), StandardCharsets.UTF_8);
         response.sendRedirect(baseUrl + "/oauth/callback#token=" + token);
+    }
+
+    private void redirectToFrontendOAuthCallbackError(HttpServletResponse response, String message)
+            throws IOException {
+        String baseUrl = normalizeFrontendBaseUrl();
+        String encodedMessage = UriUtils.encode(message, StandardCharsets.UTF_8);
+        response.sendRedirect(baseUrl + "/oauth/callback#error=" + encodedMessage);
+    }
+
+    private String normalizeFrontendBaseUrl() {
+        return frontendBaseUrl.endsWith("/")
+                ? frontendBaseUrl.substring(0, frontendBaseUrl.length() - 1)
+                : frontendBaseUrl;
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.isBlank();
     }
 }
