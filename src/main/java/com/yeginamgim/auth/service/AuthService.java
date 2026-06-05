@@ -9,6 +9,7 @@ import com.yeginamgim.auth.jwt.JWTService;
 import com.yeginamgim.auth.dto.OAuthUserInfoDto;
 import com.yeginamgim.global.exception.DuplicateMemberException;
 import com.yeginamgim.global.exception.EmailVerificationException;
+import com.yeginamgim.global.exception.EmailVerificationMailException;
 import com.yeginamgim.global.exception.LoginFailedException;
 import com.yeginamgim.global.exception.OAuthLoginException;
 import com.yeginamgim.user.entity.UserEntity;
@@ -75,7 +76,12 @@ public class AuthService {
 
         String code = generateVerificationCode();
         emailVerificationRedisService.storeVerificationCode(email, code);
-        mailService.sendVerificationCode(email, code, EMAIL_VERIFICATION_CODE_TTL);
+        try {
+            mailService.sendVerificationCode(email, code, EMAIL_VERIFICATION_CODE_TTL);
+        } catch (EmailVerificationMailException e) {
+            emailVerificationRedisService.clearVerificationState(email);
+            throw e;
+        }
 
         return EmailVerificationResponse.builder()
                 .message("인증번호가 이메일로 발송되었습니다.")

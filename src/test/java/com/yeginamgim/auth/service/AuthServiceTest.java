@@ -9,6 +9,7 @@ import com.yeginamgim.auth.jwt.JWTService;
 import com.yeginamgim.auth.dto.OAuthUserInfoDto;
 import com.yeginamgim.global.exception.DuplicateMemberException;
 import com.yeginamgim.global.exception.EmailVerificationException;
+import com.yeginamgim.global.exception.EmailVerificationMailException;
 import com.yeginamgim.global.exception.LoginFailedException;
 import com.yeginamgim.global.exception.OAuthLoginException;
 import com.yeginamgim.user.entity.UserEntity;
@@ -26,6 +27,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.doThrow;
 
 class AuthServiceTest {
 
@@ -88,6 +90,28 @@ class AuthServiceTest {
         assertThat(response.getMessage()).isEqualTo("인증번호가 이메일로 발송되었습니다.");
         verify(emailVerificationRedisService).storeVerificationCode(org.mockito.ArgumentMatchers.eq("user@example.com"), org.mockito.ArgumentMatchers.matches("\\d{6}"));
         verify(mailService).sendVerificationCode(org.mockito.ArgumentMatchers.eq("user@example.com"), org.mockito.ArgumentMatchers.matches("\\d{6}"), org.mockito.ArgumentMatchers.eq(java.time.Duration.ofMinutes(5)));
+    }
+
+    @Test
+    void sendEmailVerificationClearsVerificationStateWhenMailSendingFails() {
+        when(userRepository.findByEmail("user@missing-domain.invalid")).thenReturn(Optional.empty());
+        doThrow(new EmailVerificationMailException(new RuntimeException("missing domain")))
+                .when(mailService)
+                .sendVerificationCode(
+                        org.mockito.ArgumentMatchers.eq("user@missing-domain.invalid"),
+                        org.mockito.ArgumentMatchers.matches("\\d{6}"),
+                        org.mockito.ArgumentMatchers.eq(java.time.Duration.ofMinutes(5))
+                );
+        EmailVerificationSendRequest request = EmailVerificationSendRequest.builder()
+                .email("user@missing-domain.invalid")
+                .build();
+
+        assertThatThrownBy(() -> authService.sendEmailVerification(request))
+                .isInstanceOf(EmailVerificationMailException.class);
+
+        verify(emailVerificationRedisService)
+                .storeVerificationCode(org.mockito.ArgumentMatchers.eq("user@missing-domain.invalid"), org.mockito.ArgumentMatchers.matches("\\d{6}"));
+        verify(emailVerificationRedisService).clearVerificationState("user@missing-domain.invalid");
     }
 
     @Test
