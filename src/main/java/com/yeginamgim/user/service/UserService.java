@@ -1,7 +1,9 @@
 package com.yeginamgim.user.service;
 
+import com.yeginamgim.auth.service.EmailVerificationRedisService;
 import com.yeginamgim.global.exception.AccountWithdrawalException;
 import com.yeginamgim.global.exception.DuplicateMemberException;
+import com.yeginamgim.global.exception.EmailVerificationException;
 import com.yeginamgim.global.exception.InvalidBirthDateException;
 import com.yeginamgim.global.exception.UserNotFoundException;
 import com.yeginamgim.global.file.FileService;
@@ -37,6 +39,7 @@ public class UserService {
     private final FileService fileSvc;
     private final TraceLikeRepository traceLikeRepository;
     private final ReportRepository reportRepository;
+    private final EmailVerificationRedisService emailVerificationRedisService;
 
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
@@ -45,6 +48,10 @@ public class UserService {
     public UserSignupResponseDto signup(UserSignupRequestDto userReqDto) {
         if (userRepo.findByEmail(userReqDto.getEmail()).isPresent()) {
             throw new DuplicateMemberException();
+        }
+
+        if (!emailVerificationRedisService.isVerified(userReqDto.getEmail())) {
+            throw EmailVerificationException.required();
         }
 
         UserEntity saveEntity = userReqDto.toEntity();
@@ -61,6 +68,7 @@ public class UserService {
 
         try {
             UserEntity savedEntity = userRepo.save(saveEntity);
+            emailVerificationRedisService.clearVerificationState(savedEntity.getEmail());
             return UserSignupResponseDto.builder()
                     .email(savedEntity.getEmail())
                     .nickname(savedEntity.getNickname())

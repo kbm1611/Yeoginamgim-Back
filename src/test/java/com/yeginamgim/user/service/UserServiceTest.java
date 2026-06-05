@@ -1,7 +1,11 @@
 package com.yeginamgim.user.service;
 
+import com.yeginamgim.auth.service.EmailVerificationRedisService;
 import com.yeginamgim.global.exception.AccountWithdrawalException;
 import com.yeginamgim.global.exception.InvalidBirthDateException;
+import com.yeginamgim.global.exception.DuplicateMemberException;
+import com.yeginamgim.global.exception.EmailVerificationException;
+import com.yeginamgim.global.exception.FileUploadException;
 import com.yeginamgim.global.exception.UserNotFoundException;
 import com.yeginamgim.global.file.FileService;
 import com.yeginamgim.report.repository.ReportRepository;
@@ -15,6 +19,7 @@ import com.yeginamgim.user.enums.LoginProvider;
 import com.yeginamgim.user.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.mock.web.MockMultipartFile;
 
@@ -23,7 +28,9 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -33,12 +40,18 @@ class UserServiceTest {
     private final FileService fileService = mock(FileService.class);
     private final TraceLikeRepository traceLikeRepository = mock(TraceLikeRepository.class);
     private final ReportRepository reportRepository = mock(ReportRepository.class);
+    private final EmailVerificationRedisService emailVerificationRedisService = mock(EmailVerificationRedisService.class);
     private final UserService userService = new UserService(
             userRepository,
             fileService,
             traceLikeRepository,
-            reportRepository
+            reportRepository,
+            emailVerificationRedisService
     );
+
+    UserServiceTest() {
+        when(emailVerificationRedisService.isVerified(any())).thenReturn(true);
+    }
 
     @Test
     void getMyInfoThrowsUserNotFoundExceptionWhenUserDoesNotExist() {
@@ -75,6 +88,84 @@ class UserServiceTest {
         ArgumentCaptor<UserEntity> userCaptor = ArgumentCaptor.forClass(UserEntity.class);
         verify(userRepository).save(userCaptor.capture());
         assertThat(userCaptor.getValue().getBirthDate()).isEqualTo("060615");
+    }
+
+    @Test
+    void signupRejectsWhenEmailIsNotVerified() {
+        UserSignupRequestDto request = UserSignupRequestDto.builder()
+                .email("new@example.com")
+                .password("password123")
+                .nickname("new-user")
+                .build();
+
+        when(userRepository.findByEmail("new@example.com")).thenReturn(Optional.empty());
+        when(emailVerificationRedisService.isVerified("new@example.com")).thenReturn(false);
+
+        assertThatThrownBy(() -> userService.signup(request))
+                .isInstanceOf(EmailVerificationException.class)
+                .hasMessage("이메일 인증이 필요합니다.");
+
+        verify(fileService, never()).profileUpload(any());
+        verify(userRepository, never()).save(any());
+        verify(emailVerificationRedisService, never()).clearVerificationState(any());
+    }
+
+    @Test
+    void signupClearsEmailVerificationStateAfterSuccessfulSave() {
+        UserSignupRequestDto request = UserSignupRequestDto.builder()
+                .email("new@example.com")
+                .password("password123")
+                .nickname("new-user")
+                .build();
+
+        when(userRepository.findByEmail("new@example.com")).thenReturn(Optional.empty());
+        when(userRepository.save(any(UserEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        userService.signup(request);
+
+        verify(emailVerificationRedisService).clearVerificationState("new@example.com");
+    }
+
+    @Test
+    void signupDoesNotClearEmailVerificationStateWhenDbSaveFails() {
+        UserSignupRequestDto request = UserSignupRequestDto.builder()
+                .email("new@example.com")
+                .password("password123")
+                .nickname("new-user")
+                .build();
+
+        when(userRepository.findByEmail("new@example.com")).thenReturn(Optional.empty());
+        when(userRepository.save(any(UserEntity.class))).thenThrow(new DataIntegrityViolationException("duplicate"));
+
+        assertThatThrownBy(() -> userService.signup(request))
+                .isInstanceOf(DuplicateMemberException.class);
+
+        verify(emailVerificationRedisService, never()).clearVerificationState(any());
+    }
+
+    @Test
+    void signupDoesNotClearEmailVerificationStateWhenProfileUploadFails() {
+        MockMultipartFile profileUploadFile = new MockMultipartFile(
+                "profileUploadFile",
+                "profile.png",
+                "image/png",
+                "image".getBytes()
+        );
+        UserSignupRequestDto request = UserSignupRequestDto.builder()
+                .email("new@example.com")
+                .password("password123")
+                .nickname("new-user")
+                .profileUploadFile(profileUploadFile)
+                .build();
+
+        when(userRepository.findByEmail("new@example.com")).thenReturn(Optional.empty());
+        doThrow(FileUploadException.uploadFailed()).when(fileService).profileUpload(profileUploadFile);
+
+        assertThatThrownBy(() -> userService.signup(request))
+                .isInstanceOf(FileUploadException.class);
+
+        verify(userRepository, never()).save(any());
+        verify(emailVerificationRedisService, never()).clearVerificationState(any());
     }
 
     @Test
