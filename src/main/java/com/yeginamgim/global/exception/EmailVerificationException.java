@@ -20,6 +20,14 @@ public class EmailVerificationException extends RuntimeException {
         );
     }
 
+    public static EmailVerificationException required() {
+        return new EmailVerificationException(
+                "EMAIL_VERIFICATION_REQUIRED",
+                "이메일 인증이 필요합니다.",
+                HttpStatus.BAD_REQUEST
+        );
+    }
+
     public static EmailVerificationException expired() {
         return new EmailVerificationException(
                 "EMAIL_VERIFICATION_EXPIRED",
