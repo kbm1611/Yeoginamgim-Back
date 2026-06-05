@@ -71,6 +71,18 @@ class EmailVerificationRedisServiceTest {
     }
 
     @Test
+    void verifyCodeReturnsFalseAndRecordsAttemptWhenCodeIsMissingOrExpired() {
+        when(valueOperations.get("email:verify:code:user@example.com")).thenReturn(null);
+
+        boolean verified = service.verifyCode(" USER@example.COM ", "123456");
+
+        assertThat(verified).isFalse();
+        verify(valueOperations).increment("email:verify:attempts:user@example.com");
+        verify(redisTemplate).expire("email:verify:attempts:user@example.com", Duration.ofMinutes(5));
+        verify(valueOperations, never()).set(eq("email:verify:ok:user@example.com"), any(), any(Duration.class));
+    }
+
+    @Test
     void verifyCodeIncrementsAttemptsWithTtlWhenCodeDoesNotMatch() {
         when(valueOperations.get("email:verify:code:user@example.com")).thenReturn("stored-hash");
 

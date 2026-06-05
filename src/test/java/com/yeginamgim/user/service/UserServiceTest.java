@@ -19,6 +19,7 @@ import com.yeginamgim.user.enums.LoginProvider;
 import com.yeginamgim.user.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.mock.web.MockMultipartFile;
@@ -29,6 +30,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -124,6 +126,47 @@ class UserServiceTest {
         userService.signup(request);
 
         verify(emailVerificationRedisService).clearVerificationState("new@example.com");
+    }
+
+    @Test
+    void signupRejectsMissingVerifiedStateWithEmailVerificationRequiredCode() {
+        UserSignupRequestDto request = UserSignupRequestDto.builder()
+                .email("new@example.com")
+                .password("password123")
+                .nickname("new-user")
+                .build();
+
+        when(userRepository.findByEmail("new@example.com")).thenReturn(Optional.empty());
+        when(emailVerificationRedisService.isVerified("new@example.com")).thenReturn(false);
+
+        assertThatThrownBy(() -> userService.signup(request))
+                .isInstanceOf(EmailVerificationException.class)
+                .satisfies(exception -> assertThat(((EmailVerificationException) exception).getCode())
+                        .isEqualTo("EMAIL_VERIFICATION_REQUIRED"));
+
+        verify(emailVerificationRedisService).isVerified("new@example.com");
+        verify(userRepository, never()).save(any());
+        verify(emailVerificationRedisService, never()).clearVerificationState(any());
+    }
+
+    @Test
+    void signupChecksVerifiedStateBeforeSaveAndClearsItAfterSuccessfulSave() {
+        UserSignupRequestDto request = UserSignupRequestDto.builder()
+                .email("new@example.com")
+                .password("password123")
+                .nickname("new-user")
+                .build();
+
+        when(userRepository.findByEmail("new@example.com")).thenReturn(Optional.empty());
+        when(userRepository.save(any(UserEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        userService.signup(request);
+
+        InOrder inOrder = inOrder(userRepository, emailVerificationRedisService);
+        inOrder.verify(userRepository).findByEmail("new@example.com");
+        inOrder.verify(emailVerificationRedisService).isVerified("new@example.com");
+        inOrder.verify(userRepository).save(any(UserEntity.class));
+        inOrder.verify(emailVerificationRedisService).clearVerificationState("new@example.com");
     }
 
     @Test
