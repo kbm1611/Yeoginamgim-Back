@@ -78,6 +78,21 @@ class UserServiceTest {
     }
 
     @Test
+    void signupResponseIncludesBirthDate() {
+        UserSignupRequestDto request = UserSignupRequestDto.builder()
+                .email("new@example.com")
+                .password("password123")
+                .nickname("new-user")
+                .birthDate("060615")
+                .build();
+
+        when(userRepository.findByEmail("new@example.com")).thenReturn(Optional.empty());
+        when(userRepository.save(any(UserEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertThat(userService.signup(request).getBirthDate()).isEqualTo("060615");
+    }
+
+    @Test
     void signupIgnoresProfileImageUrlFromRequestWhenNoUploadFileExists() {
         UserSignupRequestDto request = UserSignupRequestDto.builder()
                 .email("new@example.com")

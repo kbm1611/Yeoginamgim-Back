@@ -64,6 +64,7 @@ public class UserService {
                     .email(savedEntity.getEmail())
                     .nickname(savedEntity.getNickname())
                     .profileImageUrl(savedEntity.getProfileImageUrl())
+                    .birthDate(savedEntity.getBirthDate())
                     .createdAt(savedEntity.getCreatedAt())
                     .build();
         } catch (DataIntegrityViolationException e) {

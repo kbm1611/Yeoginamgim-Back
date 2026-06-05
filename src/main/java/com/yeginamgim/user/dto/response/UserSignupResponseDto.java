@@ -17,5 +17,6 @@ public class UserSignupResponseDto {
     private String password;
     private String nickname;
     private String profileImageUrl;
+    private String birthDate;
     private LocalDateTime createdAt;
 }
