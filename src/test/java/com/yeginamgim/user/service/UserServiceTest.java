@@ -16,6 +16,7 @@ import com.yeginamgim.user.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.mock.web.MockMultipartFile;
 
 import java.util.Optional;
 
@@ -77,6 +78,52 @@ class UserServiceTest {
     }
 
     @Test
+    void signupIgnoresProfileImageUrlFromRequestWhenNoUploadFileExists() {
+        UserSignupRequestDto request = UserSignupRequestDto.builder()
+                .email("new@example.com")
+                .password("password123")
+                .nickname("new-user")
+                .profileImageUrl("https://attacker.example/profile.png")
+                .build();
+
+        when(userRepository.findByEmail("new@example.com")).thenReturn(Optional.empty());
+        when(userRepository.save(any(UserEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        userService.signup(request);
+
+        ArgumentCaptor<UserEntity> userCaptor = ArgumentCaptor.forClass(UserEntity.class);
+        verify(userRepository).save(userCaptor.capture());
+        assertThat(userCaptor.getValue().getProfileImageUrl()).isNull();
+    }
+
+    @Test
+    void signupStoresOnlyUploadedProfileImageUrlWhenUploadFileExists() {
+        MockMultipartFile profileUploadFile = new MockMultipartFile(
+                "profileUploadFile",
+                "profile.png",
+                "image/png",
+                "image".getBytes()
+        );
+        UserSignupRequestDto request = UserSignupRequestDto.builder()
+                .email("new@example.com")
+                .password("password123")
+                .nickname("new-user")
+                .profileImageUrl("https://attacker.example/profile.png")
+                .profileUploadFile(profileUploadFile)
+                .build();
+
+        when(userRepository.findByEmail("new@example.com")).thenReturn(Optional.empty());
+        when(fileService.profileUpload(profileUploadFile)).thenReturn("stored-profile.png");
+        when(userRepository.save(any(UserEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        userService.signup(request);
+
+        ArgumentCaptor<UserEntity> userCaptor = ArgumentCaptor.forClass(UserEntity.class);
+        verify(userRepository).save(userCaptor.capture());
+        assertThat(userCaptor.getValue().getProfileImageUrl()).isEqualTo("/upload/profile/stored-profile.png");
+    }
+
+    @Test
     void signupRejectsInvalidActualBirthDate() {
         UserSignupRequestDto request = UserSignupRequestDto.builder()
                 .email("new@example.com")
@@ -107,6 +154,26 @@ class UserServiceTest {
         );
 
         assertThat(existingUser.getBirthDate()).isEqualTo("990101");
+    }
+
+    @Test
+    void updateUserInfoIgnoresProfileImageUrlFromRequestWhenNoUploadFileExists() {
+        UserEntity existingUser = UserEntity.builder()
+                .email("user@example.com")
+                .nickname("old-name")
+                .profileImageUrl("/upload/profile/current.png")
+                .build();
+
+        when(userRepository.findByEmail("user@example.com")).thenReturn(Optional.of(existingUser));
+
+        userService.updateUserInfo(
+                "user@example.com",
+                UserUpdateRequestDto.builder()
+                        .profileImageUrl("https://attacker.example/profile.png")
+                        .build()
+        );
+
+        assertThat(existingUser.getProfileImageUrl()).isEqualTo("/upload/profile/current.png");
     }
 
     @Test

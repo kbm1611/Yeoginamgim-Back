@@ -47,6 +47,7 @@ public class UserService {
         }
 
         UserEntity saveEntity = userReqDto.toEntity();
+        saveEntity.setProfileImageUrl(null);
         saveEntity.setBirthDate(normalizeBirthDate(userReqDto.getBirthDate()));
 
         String fileName = fileSvc.profileUpload(userReqDto.getProfileUploadFile());

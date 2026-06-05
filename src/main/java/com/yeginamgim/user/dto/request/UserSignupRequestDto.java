@@ -46,7 +46,6 @@ public class UserSignupRequestDto {
                 .email( email )
                 .password( password )
                 .nickname( nickname )
-                .profileImageUrl( profileImageUrl )
                 .birthDate( birthDate )
                 .provider( LOCAL )
                 .build();
