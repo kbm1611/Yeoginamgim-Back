@@ -9,7 +9,9 @@ import java.nio.file.Path;
 @Configuration
 public class FileWebConfig implements WebMvcConfigurer {
 
-    private final Path uploadRoot = Path.of(System.getProperty("user.dir"), "uploads");
+    private final Path uploadRoot = Path.of(System.getProperty("user.dir"), "uploads")
+            .toAbsolutePath()
+            .normalize();
 
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
