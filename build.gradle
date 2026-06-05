@@ -24,6 +24,8 @@ dependencies {
     compileOnly 'org.projectlombok:lombok'                                       // Lombok
     annotationProcessor 'org.projectlombok:lombok'                               // Lombok
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'       // JPA
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'     // Redis
+    implementation 'org.springframework.boot:spring-boot-starter-mail'           // Mail
     implementation 'org.springframework.security:spring-security-crypto:6.4.4'   // 비크립트
 
     // JWT 라이브러리
