@@ -13,6 +13,7 @@ import com.yeginamgim.trace.repository.TraceLikeRepository;
 import com.yeginamgim.user.dto.request.UserSignupRequestDto;
 import com.yeginamgim.user.dto.request.UserUpdateRequestDto;
 import com.yeginamgim.user.dto.request.UserWithdrawRequestDto;
+import com.yeginamgim.user.dto.response.UserSignupResponseDto;
 import com.yeginamgim.user.dto.response.UserWithdrawResponseDto;
 import com.yeginamgim.user.entity.UserEntity;
 import com.yeginamgim.user.enums.LoginProvider;
@@ -24,6 +25,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.mock.web.MockMultipartFile;
 
+import java.util.Arrays;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -53,6 +55,13 @@ class UserServiceTest {
 
     UserServiceTest() {
         when(emailVerificationRedisService.isVerified(any())).thenReturn(true);
+    }
+
+    @Test
+    void signupResponseDtoDoesNotDeclarePasswordField() {
+        assertThat(Arrays.stream(UserSignupResponseDto.class.getDeclaredFields())
+                .map(field -> field.getName()))
+                .doesNotContain("password");
     }
 
     @Test
@@ -227,12 +236,11 @@ class UserServiceTest {
     }
 
     @Test
-    void signupIgnoresProfileImageUrlFromRequestWhenNoUploadFileExists() {
+    void signupDoesNotStoreProfileImageUrlWhenNoUploadFileExists() {
         UserSignupRequestDto request = UserSignupRequestDto.builder()
                 .email("new@example.com")
                 .password("password123")
                 .nickname("new-user")
-                .profileImageUrl("https://attacker.example/profile.png")
                 .build();
 
         when(userRepository.findByEmail("new@example.com")).thenReturn(Optional.empty());
@@ -257,7 +265,6 @@ class UserServiceTest {
                 .email("new@example.com")
                 .password("password123")
                 .nickname("new-user")
-                .profileImageUrl("https://attacker.example/profile.png")
                 .profileUploadFile(profileUploadFile)
                 .build();
 
