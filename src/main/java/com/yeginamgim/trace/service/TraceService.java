@@ -329,12 +329,15 @@ public class TraceService {
 
     // 흔적 이미지 업로드
     public TraceImageUploadResponse uploadTraceImage(MultipartFile file) {
-        String fileName = fileService.boardUpload(file);
-        if (fileName == null) {
+//        String fileName = fileService.boardUpload(file);
+        String fileUrl = fileService.boardUpload(file);
+//        if (fileName == null) {
+        if (fileUrl == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "업로드할 이미지 파일은 필수입니다.");
         }
 
-        return TraceImageUploadResponse.of("/upload/board/" + fileName);
+//        return TraceImageUploadResponse.of("/upload/board/" + fileName);
+        return TraceImageUploadResponse.of(fileUrl);
     }
 
     // trace_id 기준 흔적 수정

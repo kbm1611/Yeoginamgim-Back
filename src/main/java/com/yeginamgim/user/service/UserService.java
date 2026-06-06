@@ -49,9 +49,12 @@ public class UserService {
         UserEntity saveEntity = userReqDto.toEntity();
         saveEntity.setBirthDate(normalizeBirthDate(userReqDto.getBirthDate()));
 
-        String fileName = fileSvc.profileUpload(userReqDto.getProfileUploadFile());
-        if (fileName != null) {
-            saveEntity.setProfileImageUrl("/upload/profile/" + fileName);
+//        String fileName = fileSvc.profileUpload(userReqDto.getProfileUploadFile());
+        String fileUrl = fileSvc.profileUpload(userReqDto.getProfileUploadFile());
+//        if (fileName != null) {
+        if (fileUrl != null) {
+//            saveEntity.setProfileImageUrl("/upload/profile/" + fileName);
+            saveEntity.setProfileImageUrl(fileUrl);
         }
 
         String pwd = passwordEncoder.encode(userReqDto.getPassword());
@@ -92,10 +95,13 @@ public class UserService {
             userEntity.setBirthDate(normalizeBirthDate(userUpdDto.getBirthDate()));
         }
 
-        String fileName = fileSvc.profileUpload(userUpdDto.getProfileUploadFile());
-        if (fileName != null) {
+//        String fileName = fileSvc.profileUpload(userUpdDto.getProfileUploadFile());
+        String fileUrl = fileSvc.profileUpload(userUpdDto.getProfileUploadFile());
+//        if (fileName != null) {
+        if (fileUrl != null) {
             String oldProfileImageUrl = userEntity.getProfileImageUrl();
-            userEntity.setProfileImageUrl("/upload/profile/" + fileName);
+//            userEntity.setProfileImageUrl("/upload/profile/" + fileName);
+            userEntity.setProfileImageUrl(fileUrl);
             fileSvc.deleteProfileFile(oldProfileImageUrl);
         }
 
