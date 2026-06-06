@@ -14,7 +14,6 @@ import java.time.LocalDateTime;
 // 회원가입 응답 객체 Dto
 public class UserSignupResponseDto {
     private String email;
-    private String password;
     private String nickname;
     private String profileImageUrl;
     private String birthDate;
