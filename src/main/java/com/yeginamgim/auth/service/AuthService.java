@@ -36,6 +36,7 @@ public class AuthService {
     private final KakaoOAuthClientService kakaoOAuthClientService;
     private final GoogleOAuthClientService googleOAuthClientService;
     private final EmailVerificationRedisService emailVerificationRedisService;
+    private final OAuthStateRedisService oauthStateRedisService;
     private final MailService mailService;
 
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
@@ -114,7 +115,11 @@ public class AuthService {
     }
 
     public String getKaKaoLoginUrl() {
-        return kakaoOAuthClientService.getLoginUrl();
+        return startKakaoOAuth().authorizationUrl();
+    }
+
+    public OAuthLoginStart startKakaoOAuth() {
+        return startOAuth(LoginProvider.KAKAO);
     }
 
     @Transactional
@@ -123,12 +128,51 @@ public class AuthService {
     }
 
     public String getGoogleLoginUrl() {
-        return googleOAuthClientService.getLoginUrl();
+        return startGoogleOAuth().authorizationUrl();
+    }
+
+    public OAuthLoginStart startGoogleOAuth() {
+        return startOAuth(LoginProvider.GOOGLE);
     }
 
     @Transactional
     public LoginResponseDto googleLogin(String code) {
         return socialLogin(googleOAuthClientService.fetchUserInfo(code));
+    }
+
+    public boolean consumeKakaoOAuthState(String state) {
+        return consumeOAuthState(LoginProvider.KAKAO, state);
+    }
+
+    public boolean consumeGoogleOAuthState(String state) {
+        return consumeOAuthState(LoginProvider.GOOGLE, state);
+    }
+
+    private OAuthLoginStart startOAuth(LoginProvider provider) {
+        String state = oauthStateRedisService.generateState();
+        oauthStateRedisService.storeState(state, provider);
+
+        String authorizationUrl = provider == LoginProvider.KAKAO
+                ? kakaoOAuthClientService.getLoginUrl(state)
+                : googleOAuthClientService.getLoginUrl(state);
+
+        return new OAuthLoginStart(authorizationUrl, state, OAuthStateRedisService.STATE_TTL);
+    }
+
+    private boolean consumeOAuthState(LoginProvider expectedProvider, String state) {
+        if (state == null || state.isBlank()) {
+            return false;
+        }
+
+        boolean valid = oauthStateRedisService.findProvider(state)
+                .filter(expectedProvider::equals)
+                .isPresent();
+        if (!valid) {
+            return false;
+        }
+
+        oauthStateRedisService.deleteState(state);
+        return true;
     }
 
     private LoginResponseDto socialLogin(OAuthUserInfoDto userInfo) {

@@ -36,6 +36,7 @@ class AuthServiceTest {
     private final KakaoOAuthClientService kakaoOAuthClientService = mock(KakaoOAuthClientService.class);
     private final GoogleOAuthClientService googleOAuthClientService = mock(GoogleOAuthClientService.class);
     private final EmailVerificationRedisService emailVerificationRedisService = mock(EmailVerificationRedisService.class);
+    private final OAuthStateRedisService oauthStateRedisService = mock(OAuthStateRedisService.class);
     private final MailService mailService = mock(MailService.class);
     private final AuthService authService = new AuthService(
             userRepository,
@@ -43,6 +44,7 @@ class AuthServiceTest {
             kakaoOAuthClientService,
             googleOAuthClientService,
             emailVerificationRedisService,
+            oauthStateRedisService,
             mailService
     );
 
@@ -173,6 +175,61 @@ class AuthServiceTest {
         assertThat(response.isVerified()).isTrue();
         assertThat(response.getMessage()).isEqualTo("이메일 인증이 완료되었습니다.");
         verify(emailVerificationRedisService).verifyCode("user@example.com", "123456");
+    }
+
+    @Test
+    void startKakaoOAuthStoresStateAndBuildsAuthorizeUrl() {
+        when(oauthStateRedisService.generateState()).thenReturn("state-123");
+        when(kakaoOAuthClientService.getLoginUrl("state-123"))
+                .thenReturn("https://kauth.kakao.com/oauth/authorize?state=state-123");
+
+        OAuthLoginStart loginStart = authService.startKakaoOAuth();
+
+        assertThat(loginStart.authorizationUrl()).contains("state=state-123");
+        assertThat(loginStart.state()).isEqualTo("state-123");
+        assertThat(loginStart.ttl()).isEqualTo(java.time.Duration.ofMinutes(5));
+        verify(oauthStateRedisService).storeState("state-123", LoginProvider.KAKAO);
+    }
+
+    @Test
+    void startGoogleOAuthStoresStateAndBuildsAuthorizeUrl() {
+        when(oauthStateRedisService.generateState()).thenReturn("state-123");
+        when(googleOAuthClientService.getLoginUrl("state-123"))
+                .thenReturn("https://accounts.google.com/o/oauth2/v2/auth?state=state-123");
+
+        OAuthLoginStart loginStart = authService.startGoogleOAuth();
+
+        assertThat(loginStart.authorizationUrl()).contains("state=state-123");
+        assertThat(loginStart.state()).isEqualTo("state-123");
+        assertThat(loginStart.ttl()).isEqualTo(java.time.Duration.ofMinutes(5));
+        verify(oauthStateRedisService).storeState("state-123", LoginProvider.GOOGLE);
+    }
+
+    @Test
+    void consumeOAuthStateRejectsMissingRedisState() {
+        when(oauthStateRedisService.findProvider("state-123")).thenReturn(Optional.empty());
+
+        assertThat(authService.consumeKakaoOAuthState("state-123")).isFalse();
+
+        verify(oauthStateRedisService, never()).deleteState(any());
+    }
+
+    @Test
+    void consumeOAuthStateRejectsProviderMismatch() {
+        when(oauthStateRedisService.findProvider("state-123")).thenReturn(Optional.of(LoginProvider.GOOGLE));
+
+        assertThat(authService.consumeKakaoOAuthState("state-123")).isFalse();
+
+        verify(oauthStateRedisService, never()).deleteState(any());
+    }
+
+    @Test
+    void consumeOAuthStateDeletesStateWhenProviderMatches() {
+        when(oauthStateRedisService.findProvider("state-123")).thenReturn(Optional.of(LoginProvider.KAKAO));
+
+        assertThat(authService.consumeKakaoOAuthState("state-123")).isTrue();
+
+        verify(oauthStateRedisService).deleteState("state-123");
     }
 
     @Test
