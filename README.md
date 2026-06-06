@@ -236,6 +236,45 @@ PATCH  /api/user/update
 DELETE /api/user/me
 ```
 
+#### 회원가입
+
+`POST /api/user/signup`은 JSON 요청을 지원하지 않고, `Content-Type: multipart/form-data` 요청만 받습니다.
+
+요청 필드:
+
+| 필드 | 필수 여부 | 설명 |
+| --- | --- | --- |
+| `email` | 필수 | 회원 이메일 |
+| `password` | 필수 | 회원 비밀번호 |
+| `nickname` | 필수 | 회원 닉네임 |
+| `birthDate` | 선택 | 생년월일 문자열 |
+| `profileUploadFile` | 선택 | 프로필 이미지 파일 |
+
+요청 예시:
+
+```powershell
+curl.exe -X POST "http://localhost:8080/api/user/signup" `
+  -F "email=new@example.com" `
+  -F "password=password123" `
+  -F "nickname=new-user" `
+  -F "birthDate=060615" `
+  -F "profileUploadFile=@C:\path\to\profile.png"
+```
+
+응답 예시:
+
+```json
+{
+  "email": "new@example.com",
+  "nickname": "new-user",
+  "profileImageUrl": "/uploads/profile/profile.png",
+  "birthDate": "060615",
+  "createdAt": "2026-06-06T12:34:56"
+}
+```
+
+응답 바디에는 `password`가 포함되지 않습니다. `application/json` 요청은 지원하지 않으며, JSON 바디로 요청하면 `415 Unsupported Media Type` 응답을 받을 수 있습니다.
+
 ### Auth
 
 ```text
