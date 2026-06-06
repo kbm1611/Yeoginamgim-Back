@@ -1,10 +1,15 @@
 package com.yeginamgim.auth.service;
 
+import com.yeginamgim.auth.dto.request.EmailVerificationSendRequest;
+import com.yeginamgim.auth.dto.request.EmailVerificationVerifyRequest;
 import com.yeginamgim.auth.dto.request.LoginRequestDto;
+import com.yeginamgim.auth.dto.response.EmailVerificationResponse;
 import com.yeginamgim.auth.dto.response.LoginResponseDto;
 import com.yeginamgim.auth.jwt.JWTService;
 import com.yeginamgim.auth.dto.OAuthUserInfoDto;
 import com.yeginamgim.global.exception.DuplicateMemberException;
+import com.yeginamgim.global.exception.EmailVerificationException;
+import com.yeginamgim.global.exception.EmailVerificationMailException;
 import com.yeginamgim.global.exception.LoginFailedException;
 import com.yeginamgim.global.exception.OAuthLoginException;
 import com.yeginamgim.user.entity.UserEntity;
@@ -15,13 +20,23 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.security.SecureRandom;
+import java.time.Duration;
+import java.util.Locale;
+
 @Service
 @RequiredArgsConstructor
 public class AuthService {
+    private static final Duration EMAIL_VERIFICATION_CODE_TTL = Duration.ofMinutes(5);
+    private static final long MAX_EMAIL_VERIFICATION_ATTEMPTS = 5L;
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+
     private final UserRepository userRepo;
     private final JWTService jwtSvc;
     private final KakaoOAuthClientService kakaoOAuthClientService;
     private final GoogleOAuthClientService googleOAuthClientService;
+    private final EmailVerificationRedisService emailVerificationRedisService;
+    private final MailService mailService;
 
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
@@ -45,6 +60,57 @@ public class AuthService {
 
         String token = jwtSvc.createToken(userEntity.getEmail());
         return LoginResponseDto.from(userEntity, token);
+    }
+
+    @Transactional(readOnly = true)
+    public EmailVerificationResponse sendEmailVerification(EmailVerificationSendRequest request) {
+        String email = normalizeEmail(request.getEmail());
+
+        if (userRepo.findByEmail(email).isPresent()) {
+            throw new DuplicateMemberException();
+        }
+
+        if (emailVerificationRedisService.hasCooldown(email)) {
+            throw EmailVerificationException.cooldown();
+        }
+
+        String code = generateVerificationCode();
+        emailVerificationRedisService.storeVerificationCode(email, code);
+        try {
+            mailService.sendVerificationCode(email, code, EMAIL_VERIFICATION_CODE_TTL);
+        } catch (EmailVerificationMailException e) {
+            emailVerificationRedisService.clearVerificationState(email);
+            throw e;
+        }
+
+        return EmailVerificationResponse.builder()
+                .message("인증번호가 이메일로 발송되었습니다.")
+                .verified(false)
+                .build();
+    }
+
+    public EmailVerificationResponse verifyEmailVerification(EmailVerificationVerifyRequest request) {
+        String email = normalizeEmail(request.getEmail());
+
+        if (!emailVerificationRedisService.hasVerificationCode(email)) {
+            throw EmailVerificationException.expired();
+        }
+
+        if (emailVerificationRedisService.getFailedAttempts(email) >= MAX_EMAIL_VERIFICATION_ATTEMPTS) {
+            throw EmailVerificationException.attemptsExceeded();
+        }
+
+        if (!emailVerificationRedisService.verifyCode(email, request.getCode())) {
+            if (emailVerificationRedisService.getFailedAttempts(email) >= MAX_EMAIL_VERIFICATION_ATTEMPTS) {
+                throw EmailVerificationException.attemptsExceeded();
+            }
+            throw EmailVerificationException.invalidCode();
+        }
+
+        return EmailVerificationResponse.builder()
+                .message("이메일 인증이 완료되었습니다.")
+                .verified(true)
+                .build();
     }
 
     public String getKaKaoLoginUrl() {
@@ -112,5 +178,16 @@ public class AuthService {
 
         String token = jwtSvc.createToken(userEntity.getEmail());
         return LoginResponseDto.from(userEntity, token);
+    }
+
+    private String generateVerificationCode() {
+        return String.format("%06d", SECURE_RANDOM.nextInt(1_000_000));
+    }
+
+    private String normalizeEmail(String email) {
+        if (email == null) {
+            return "";
+        }
+        return email.trim().toLowerCase(Locale.ROOT);
     }
 }

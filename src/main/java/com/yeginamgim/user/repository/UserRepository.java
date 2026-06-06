@@ -17,7 +17,7 @@ public interface UserRepository extends JpaRepository<UserEntity, Long> {
             select user
             from UserEntity user
             where user.email = :email
-              and user.deletedAt is null
+            and user.deletedAt is null
             """)
     Optional<UserEntity> findByEmail(@Param("email") String email);
 }

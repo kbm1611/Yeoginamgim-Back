@@ -35,7 +35,6 @@ public class UserUpdateRequestDto {
         return UserEntity.builder()
                 .email( email )
                 .nickname( nickname )
-                .profileImageUrl( profileImageUrl )
                 .birthDate( birthDate )
                 .build();
     }
