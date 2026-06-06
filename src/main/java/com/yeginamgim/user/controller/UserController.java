@@ -7,6 +7,7 @@ import com.yeginamgim.user.dto.request.UserWithdrawRequestDto;
 import com.yeginamgim.user.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -25,7 +26,7 @@ public class UserController {
     private final UserService userSvc;
     private final JWTService jwtSvc;
 
-    @PostMapping("/signup")
+    @PostMapping(value = "/signup", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> signup(@Valid @ModelAttribute UserSignupRequestDto userReqDto) {
         return ResponseEntity.ok(userSvc.signup(userReqDto));
     }
