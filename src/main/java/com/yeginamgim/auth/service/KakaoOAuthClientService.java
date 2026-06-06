@@ -33,12 +33,17 @@ public class KakaoOAuthClientService {
     private String kakaoRedirectUri;
 
     public String getLoginUrl() {
+        return getLoginUrl(null);
+    }
+
+    public String getLoginUrl(String state) {
         return UriComponentsBuilder
                 .fromUriString("https://kauth.kakao.com/oauth/authorize")
                 .queryParam("response_type", "code")
                 .queryParam("client_id", kakaoClientId)
                 .queryParam("redirect_uri", kakaoRedirectUri)
                 .queryParam("scope", "profile_nickname profile_image account_email")
+                .queryParamIfPresent("state", java.util.Optional.ofNullable(state).filter(value -> !value.isBlank()))
                 .build()
                 .toUriString();
     }

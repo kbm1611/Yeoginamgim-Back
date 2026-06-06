@@ -33,12 +33,17 @@ public class GoogleOAuthClientService {
     private String googleRedirectUri;
 
     public String getLoginUrl() {
+        return getLoginUrl(null);
+    }
+
+    public String getLoginUrl(String state) {
         return UriComponentsBuilder
                 .fromUriString("https://accounts.google.com/o/oauth2/v2/auth")
                 .queryParam("response_type", "code")
                 .queryParam("client_id", googleClientId)
                 .queryParam("redirect_uri", googleRedirectUri)
                 .queryParam("scope", "openid email profile")
+                .queryParamIfPresent("state", java.util.Optional.ofNullable(state).filter(value -> !value.isBlank()))
                 .build()
                 .toUriString();
     }
