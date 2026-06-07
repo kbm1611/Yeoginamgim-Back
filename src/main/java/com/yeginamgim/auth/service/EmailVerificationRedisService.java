@@ -29,11 +29,19 @@ public class EmailVerificationRedisService {
 
     private final StringRedisTemplate redisTemplate;
 
+    public boolean tryReserveCooldown(String email) {
+        String normalizedEmail = normalizeEmail(email);
+        return Boolean.TRUE.equals(redisTemplate.opsForValue().setIfAbsent(
+                cooldownKey(normalizedEmail),
+                ACTIVE_VALUE,
+                COOLDOWN_TTL
+        ));
+    }
+
     public void storeVerificationCode(String email, String code) {
         String normalizedEmail = normalizeEmail(email);
 
         redisTemplate.opsForValue().set(codeKey(normalizedEmail), hashCode(code), CODE_TTL);
-        redisTemplate.opsForValue().set(cooldownKey(normalizedEmail), ACTIVE_VALUE, COOLDOWN_TTL);
         redisTemplate.delete(attemptsKey(normalizedEmail));
         redisTemplate.delete(verifiedKey(normalizedEmail));
     }

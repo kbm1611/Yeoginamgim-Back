@@ -69,7 +69,7 @@ class AuthServiceTest {
     @Test
     void sendEmailVerificationRejectsCooldown() {
         when(userRepository.findByEmail("user@example.com")).thenReturn(Optional.empty());
-        when(emailVerificationRedisService.hasCooldown("user@example.com")).thenReturn(true);
+        when(emailVerificationRedisService.tryReserveCooldown("user@example.com")).thenReturn(false);
         EmailVerificationSendRequest request = EmailVerificationSendRequest.builder()
                 .email(" USER@example.COM ")
                 .build();
@@ -82,6 +82,7 @@ class AuthServiceTest {
     @Test
     void sendEmailVerificationStoresCodeAndSendsMail() {
         when(userRepository.findByEmail("user@example.com")).thenReturn(Optional.empty());
+        when(emailVerificationRedisService.tryReserveCooldown("user@example.com")).thenReturn(true);
         EmailVerificationSendRequest request = EmailVerificationSendRequest.builder()
                 .email(" USER@example.COM ")
                 .build();
@@ -97,6 +98,7 @@ class AuthServiceTest {
     @Test
     void sendEmailVerificationClearsVerificationStateWhenMailSendingFails() {
         when(userRepository.findByEmail("user@missing-domain.invalid")).thenReturn(Optional.empty());
+        when(emailVerificationRedisService.tryReserveCooldown("user@missing-domain.invalid")).thenReturn(true);
         doThrow(new EmailVerificationMailException(new RuntimeException("missing domain")))
                 .when(mailService)
                 .sendVerificationCode(

@@ -29,6 +29,18 @@ class EmailVerificationRedisServiceTest {
     }
 
     @Test
+    void tryReserveCooldownSetsCooldownOnlyWhenMissing() {
+        when(valueOperations.setIfAbsent(
+                "email:verify:cooldown:user@example.com",
+                "1",
+                Duration.ofSeconds(60)
+        )).thenReturn(true, false);
+
+        assertThat(service.tryReserveCooldown(" USER@Example.COM ")).isTrue();
+        assertThat(service.tryReserveCooldown(" USER@Example.COM ")).isFalse();
+    }
+
+    @Test
     void storeVerificationCodeNormalizesEmailAndStoresHashedCodeWithTtls() {
         service.storeVerificationCode("  USER@Example.COM  ", "123456");
 
@@ -40,11 +52,6 @@ class EmailVerificationRedisServiceTest {
         );
         assertThat(storedCode.getValue()).isNotEqualTo("123456");
         assertThat(storedCode.getValue()).isNotBlank();
-        verify(valueOperations).set(
-                "email:verify:cooldown:user@example.com",
-                "1",
-                Duration.ofSeconds(60)
-        );
         verify(redisTemplate).delete("email:verify:attempts:user@example.com");
         verify(redisTemplate).delete("email:verify:ok:user@example.com");
     }

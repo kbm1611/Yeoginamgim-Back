@@ -71,7 +71,7 @@ public class AuthService {
             throw new DuplicateMemberException();
         }
 
-        if (emailVerificationRedisService.hasCooldown(email)) {
+        if (!emailVerificationRedisService.tryReserveCooldown(email)) {
             throw EmailVerificationException.cooldown();
         }
 
