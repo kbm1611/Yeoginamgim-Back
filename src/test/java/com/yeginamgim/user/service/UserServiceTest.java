@@ -65,6 +65,14 @@ class UserServiceTest {
     }
 
     @Test
+    void userUpdateRequestDtoExposesOnlyEditableProfileFields() {
+        assertThat(Arrays.stream(UserUpdateRequestDto.class.getDeclaredFields())
+                .map(field -> field.getName()))
+                .contains("nickname", "birthDate", "profileUploadFile")
+                .doesNotContain("email", "profileImageUrl", "updateAt");
+    }
+
+    @Test
     void getMyInfoThrowsUserNotFoundExceptionWhenUserDoesNotExist() {
         when(userRepository.findByEmail("missing@example.com")).thenReturn(Optional.empty());
 
@@ -310,26 +318,6 @@ class UserServiceTest {
         );
 
         assertThat(existingUser.getBirthDate()).isEqualTo("990101");
-    }
-
-    @Test
-    void updateUserInfoIgnoresProfileImageUrlFromRequestWhenNoUploadFileExists() {
-        UserEntity existingUser = UserEntity.builder()
-                .email("user@example.com")
-                .nickname("old-name")
-                .profileImageUrl("/upload/profile/current.png")
-                .build();
-
-        when(userRepository.findByEmail("user@example.com")).thenReturn(Optional.of(existingUser));
-
-        userService.updateUserInfo(
-                "user@example.com",
-                UserUpdateRequestDto.builder()
-                        .profileImageUrl("https://attacker.example/profile.png")
-                        .build()
-        );
-
-        assertThat(existingUser.getProfileImageUrl()).isEqualTo("/upload/profile/current.png");
     }
 
     @Test
