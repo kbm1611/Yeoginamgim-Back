@@ -1,7 +1,9 @@
 package com.yeginamgim.user.controller;
 
 import com.yeginamgim.auth.jwt.JWTService;
+import com.yeginamgim.global.exception.GlobalExceptionHandler;
 import com.yeginamgim.global.exception.InvalidTokenException;
+import com.yeginamgim.user.dto.request.UserUpdateRequestDto;
 import com.yeginamgim.user.dto.response.UserSignupResponseDto;
 import com.yeginamgim.user.dto.request.UserWithdrawRequestDto;
 import com.yeginamgim.user.dto.response.UserInfoResponseDto;
@@ -20,6 +22,7 @@ import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.hasKey;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
@@ -91,6 +94,26 @@ class UserControllerTest {
         assertThatThrownBy(() -> userController.getMyInfo(null))
                 .isInstanceOf(InvalidTokenException.class);
         verify(jwtService).extractEmailFromBearerToken(null);
+    }
+
+    @Test
+    void updateRejectsBlankNicknameWithValidationErrorResponse() throws Exception {
+        MockMvc validationMockMvc = standaloneSetup(userController)
+                .setControllerAdvice(new GlobalExceptionHandler())
+                .build();
+
+        validationMockMvc.perform(multipart("/api/user/update")
+                        .param("nickname", "   ")
+                        .with(request -> {
+                            request.setMethod("PATCH");
+                            return request;
+                        }))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.message").value("nickname must not be blank."))
+                .andExpect(jsonPath("$.status").value(400));
+
+        verify(userService, never()).updateUserInfo(any(), any(UserUpdateRequestDto.class));
     }
 
     @Test
