@@ -31,20 +31,14 @@ public class UserSignupRequestDto {
     @Size(max = 255, message = "nickname must be 255 characters or less.")
     private String nickname;
 
-    @Size(max = 1000, message = "profileImageUrl must be 1000 characters or less.")
-    private String profileImageUrl;
-
     @Size(max = 6, message = "birthDate must be 6 characters or less.")
     private String birthDate;
 
     private MultipartFile profileUploadFile;
 
-    private String createAt;
-
     public UserEntity toEntity(){
         return UserEntity.builder()
                 .email( email )
-                .password( password )
                 .nickname( nickname )
                 .birthDate( birthDate )
                 .provider( LOCAL )
