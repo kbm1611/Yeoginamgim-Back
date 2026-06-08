@@ -3,6 +3,8 @@ package com.yeginamgim.trace.controller;
 import com.yeginamgim.global.exception.FileUploadException;
 import com.yeginamgim.global.exception.GlobalExceptionHandler;
 import com.yeginamgim.trace.dto.TraceImageUploadResponse;
+import com.yeginamgim.trace.dto.TraceLikeResponse;
+import com.yeginamgim.trace.dto.TraceListResponse;
 import com.yeginamgim.trace.service.TraceService;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockMultipartFile;
@@ -15,8 +17,10 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -40,6 +44,45 @@ class TraceControllerTest {
                 .andExpect(status().isOk());
 
         verify(traceService).getRecentTraces("today", "Seongdong-gu", 5, null);
+    }
+
+    @Test
+    void boardTracesAcceptPopularSortAndAuthorizationHeader() throws Exception {
+        when(traceService.getTracesByBoardId(3L, "popular", 5, null, "Bearer jwt-token"))
+                .thenReturn(TraceListResponse.of(3L, List.of()));
+
+        mockMvc.perform(get("/api/boards/3/traces")
+                        .header("Authorization", "Bearer jwt-token")
+                        .param("sort", "popular")
+                        .param("limit", "5"))
+                .andExpect(status().isOk());
+
+        verify(traceService).getTracesByBoardId(3L, "popular", 5, null, "Bearer jwt-token");
+    }
+
+    @Test
+    void traceLikeEndpointsDelegateWithAuthorizationHeader() throws Exception {
+        when(traceService.addLike(9L, "Bearer jwt-token"))
+                .thenReturn(TraceLikeResponse.of(9L, true, 4L));
+        when(traceService.removeLike(9L, "Bearer jwt-token"))
+                .thenReturn(TraceLikeResponse.of(9L, false, 3L));
+
+        mockMvc.perform(post("/api/traces/9/likes")
+                        .header("Authorization", "Bearer jwt-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.traceId").value(9))
+                .andExpect(jsonPath("$.liked").value(true))
+                .andExpect(jsonPath("$.likeCount").value(4));
+
+        mockMvc.perform(delete("/api/traces/9/likes")
+                        .header("Authorization", "Bearer jwt-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.traceId").value(9))
+                .andExpect(jsonPath("$.liked").value(false))
+                .andExpect(jsonPath("$.likeCount").value(3));
+
+        verify(traceService).addLike(9L, "Bearer jwt-token");
+        verify(traceService).removeLike(9L, "Bearer jwt-token");
     }
 
     @Test
