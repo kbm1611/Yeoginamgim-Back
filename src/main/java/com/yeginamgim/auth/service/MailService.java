@@ -2,6 +2,7 @@ package com.yeginamgim.auth.service;
 
 import com.yeginamgim.global.exception.EmailVerificationMailException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.MailException;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -17,9 +18,12 @@ public class MailService {
     private final JavaMailSender mailSender;
     private final EmailDomainValidator emailDomainValidator;
 
+    @Value("${email.verification.recipient-validation.enabled:false}")
+    private boolean recipientValidationEnabled;
+
     public void sendVerificationCode(String email, String code, Duration expiresIn) {
         String recipient = email.trim();
-        if (!emailDomainValidator.canReceiveMail(recipient)) {
+        if (recipientValidationEnabled && !emailDomainValidator.canReceiveMail(recipient)) {
             throw new EmailVerificationMailException(new IllegalArgumentException("Email recipient cannot receive mail."));
         }
 

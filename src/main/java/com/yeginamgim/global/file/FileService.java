@@ -1,6 +1,7 @@
 package com.yeginamgim.global.file;
 
 import com.yeginamgim.global.exception.FileUploadException;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -26,27 +27,37 @@ public class FileService {
     private final Path uploadRoot;
     private final Path profileUploadDir;
     private final Path boardUploadDir;
+    private final S3Service s3Service;
 
-    public FileService() {
-        this(Path.of(System.getProperty("user.dir"), "uploads"));
+    @Autowired
+    public FileService(S3Service s3Service) {
+        this(s3Service, Path.of(System.getProperty("user.dir"), "uploads"));
     }
 
-    FileService(Path uploadRoot) {
+    FileService(S3Service s3Service, Path uploadRoot) {
+        this.s3Service = s3Service;
         this.uploadRoot = uploadRoot.toAbsolutePath().normalize();
         this.profileUploadDir = this.uploadRoot.resolve("profile").normalize();
         this.boardUploadDir = this.uploadRoot.resolve("board").normalize();
     }
 
     public String profileUpload(MultipartFile uploadFile) {
-        return upload(uploadFile, profileUploadDir);
+        return upload(uploadFile, profileUploadDir, "profile");
     }
 
     public String boardUpload(MultipartFile uploadFile) {
-        return upload(uploadFile, boardUploadDir);
+        return upload(uploadFile, boardUploadDir, "board");
     }
 
     public void deleteProfileFile(String profileImageUrl) {
-        if (profileImageUrl == null || !profileImageUrl.startsWith(PROFILE_URL_PREFIX)) return;
+        if (profileImageUrl == null || profileImageUrl.isBlank()) return;
+
+        if (profileImageUrl.startsWith("http://") || profileImageUrl.startsWith("https://")) {
+            s3Service.deleteFile(profileImageUrl);
+            return;
+        }
+
+        if (!profileImageUrl.startsWith(PROFILE_URL_PREFIX)) return;
 
         String fileName = profileImageUrl.substring(PROFILE_URL_PREFIX.length());
         if (fileName.isBlank()) return;
@@ -68,7 +79,7 @@ public class FileService {
         }
     }
 
-    private String upload(MultipartFile uploadFile, Path uploadDir) {
+    private String upload(MultipartFile uploadFile, Path uploadDir, String s3DirectoryName) {
         if (uploadFile == null || uploadFile.isEmpty()) return null;
         if (uploadFile.getSize() > MAX_FILE_SIZE) throw FileUploadException.fileTooLarge();
 
@@ -87,10 +98,11 @@ public class FileService {
         }
 
         try {
-            Files.createDirectories(safeUploadDir);
-            uploadFile.transferTo(uploadRealPath.toFile());
-            return fileName;
-        } catch (IOException e) {
+//            Files.createDirectories(safeUploadDir);
+//            uploadFile.transferTo(uploadRealPath.toFile());
+//            return fileName;
+            return s3Service.uploadFile(uploadFile, s3DirectoryName);
+        } catch (RuntimeException e) {
             throw FileUploadException.uploadFailed();
         }
     }

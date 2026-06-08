@@ -10,7 +10,6 @@ import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.util.HexFormat;
 import java.util.Locale;
-import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -44,7 +43,7 @@ public class EmailVerificationRedisService {
 
         if (storedCodeHash != null && storedCodeHash.equals(hashCode(code))) {
             redisTemplate.opsForValue().set(verifiedKey(normalizedEmail), ACTIVE_VALUE, VERIFIED_TTL);
-            redisTemplate.delete(Set.of(codeKey(normalizedEmail), attemptsKey(normalizedEmail)));
+            deleteKeys(codeKey(normalizedEmail), attemptsKey(normalizedEmail));
             return true;
         }
 
@@ -79,12 +78,18 @@ public class EmailVerificationRedisService {
 
     public void clearVerificationState(String email) {
         String normalizedEmail = normalizeEmail(email);
-        redisTemplate.delete(Set.of(
+        deleteKeys(
                 codeKey(normalizedEmail),
                 verifiedKey(normalizedEmail),
                 cooldownKey(normalizedEmail),
                 attemptsKey(normalizedEmail)
-        ));
+        );
+    }
+
+    private void deleteKeys(String... keys) {
+        for (String key : keys) {
+            redisTemplate.delete(key);
+        }
     }
 
     private void recordFailedAttempt(String normalizedEmail) {
