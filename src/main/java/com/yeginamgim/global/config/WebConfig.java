@@ -19,7 +19,8 @@ public class WebConfig implements WebMvcConfigurer {
                         normalizeOrigin(frontendBaseUrl),
                         CLOUDFRONT_FRONTEND_URL,
                         "http://localhost:*",
-                        "http://127.0.0.1:*"
+                        "http://127.0.0.1:*",
+                        "http://elasticbeanstalk-ap-northeast-2-988477084982.s3-website.ap-northeast-2.amazonaws.com/home"
                 )
                 .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
                 .allowedHeaders("*")
