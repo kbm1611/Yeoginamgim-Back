@@ -1,5 +1,6 @@
 package com.yeginamgim.trace.dto;
 
+import com.yeginamgim.customboard.entity.CustomBoard;
 import com.yeginamgim.trace.entity.Trace;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -36,9 +37,13 @@ public class TraceResponse {
     }
 
     public static TraceResponse from(Trace trace, List<TraceElementResponse> elements, Long likeCount, Boolean liked) {
+        Long boardId = trace.getBoard() != null
+                ? trace.getBoard().getBoardId()
+                : trace.getCustomBoard() != null ? trace.getCustomBoard().getCustomBoardId() : null;
+
         return TraceResponse.builder()
                 .traceId(trace.getTraceId())
-                .boardId(trace.getBoard().getBoardId())
+                .boardId(boardId)
                 .userId(trace.getUser().getUserId())
                 .nickname(trace.getUser().getNickname())
                 .traceX(trace.getTraceX())

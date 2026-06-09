@@ -4,6 +4,10 @@ import com.yeginamgim.auth.jwt.JWTService;
 import com.yeginamgim.board.dto.PlaceInfo;
 import com.yeginamgim.board.entity.BoardEntity;
 import com.yeginamgim.board.repository.BoardRepository;
+import com.yeginamgim.customboard.entity.CustomBoard;
+import com.yeginamgim.customboard.enums.BoardRole;
+import com.yeginamgim.customboard.repository.CustomBoardMemberRepository;
+import com.yeginamgim.customboard.repository.CustomBoardRepository;
 import com.yeginamgim.global.file.FileService;
 import com.yeginamgim.global.util.PeriodRange;
 import com.yeginamgim.place.repository.PlaceCsvStore;
@@ -54,6 +58,8 @@ public class TraceService {
     private final TraceElementRepository traceElementRepository;
     private final TraceLikeRepository traceLikeRepository;
     private final BoardRepository boardRepository;
+    private final CustomBoardRepository customBoardRepository;
+    private final CustomBoardMemberRepository customBoardMemberRepository;
     private final UserRepository userRepository;
     private final FileService fileService;
     private final JWTService jwtService;
@@ -372,6 +378,106 @@ public class TraceService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "삭제할 수 있는 흔적을 찾을 수 없습니다."));
 
         trace.hide();
+    }
+
+    // custom_board_id 기준 흔적 생성
+    @Transactional
+    public TraceResponse createTraceForCustomBoard(Long customBoardId, String authorization, TraceCreateRequest request) {
+        validateCreateRequest(request);
+
+        UserEntity user = findUserByToken(authorization);
+        CustomBoard customBoard = findCustomBoard(customBoardId);
+        validateCustomBoardMember(customBoardId, user.getUserId());
+
+        Trace trace = traceRepository.save(Trace.createForCustomBoard(customBoard, user, request.getTraceX(), request.getTraceY()));
+
+        List<TraceElement> elements = new ArrayList<>();
+        if (request.getElements() != null) {
+            for (TraceElementCreateRequest elementRequest : request.getElements()) {
+                elements.add(toTraceElement(trace, elementRequest));
+            }
+        }
+
+        if (!elements.isEmpty()) {
+            traceElementRepository.saveAll(elements);
+        }
+
+        return toCustomBoardTraceResponse(trace, elements, user.getUserId());
+    }
+
+    // custom_board_id 기준 흔적 목록 조회
+    @Transactional(readOnly = true)
+    public List<TraceResponse> getTracesByCustomBoardId(Long customBoardId, String authorization) {
+        UserEntity user = findUserByToken(authorization);
+        findCustomBoard(customBoardId);
+        validateCustomBoardMember(customBoardId, user.getUserId());
+
+        List<Trace> traces = traceRepository.findByCustomBoardId(customBoardId, TraceStatus.ACTIVE);
+        List<Long> traceIds = traces.stream().map(Trace::getTraceId).toList();
+        Map<Long, List<TraceElement>> elementMap = findElementsByTraceIds(traceIds);
+
+        return traces.stream()
+                .map(trace -> toCustomBoardTraceResponse(
+                        trace,
+                        elementMap.getOrDefault(trace.getTraceId(), List.of()),
+                        user.getUserId()
+                ))
+                .toList();
+    }
+
+    // custom_board 흔적 삭제 (작성자 또는 OWNER)
+    @Transactional
+    public void hideCustomBoardTrace(Long traceId, String authorization) {
+        UserEntity user = findUserByToken(authorization);
+        Trace trace = findTrace(traceId);
+
+        if (trace.getCustomBoard() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "커스텀 보드 흔적이 아닙니다.");
+        }
+
+        Long customBoardId = trace.getCustomBoard().getCustomBoardId();
+        boolean isAuthor = trace.getUser().getUserId().equals(user.getUserId());
+        boolean isOwner = customBoardMemberRepository
+                .existsByCustomBoard_CustomBoardIdAndUser_UserIdAndRole(
+                        customBoardId, user.getUserId(), BoardRole.OWNER);
+
+        if (!isAuthor && !isOwner) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "흔적을 삭제할 권한이 없습니다.");
+        }
+
+        trace.hide();
+    }
+
+    private TraceResponse toCustomBoardTraceResponse(Trace trace, List<TraceElement> elements, Long viewerUserId) {
+        List<TraceElementResponse> elementResponses = elements.stream()
+                .map(TraceElementResponse::from)
+                .toList();
+
+        return TraceResponse.builder()
+                .traceId(trace.getTraceId())
+                .boardId(trace.getCustomBoard().getCustomBoardId())
+                .userId(trace.getUser().getUserId())
+                .nickname(trace.getUser().getNickname())
+                .traceX(trace.getTraceX())
+                .traceY(trace.getTraceY())
+                .traceStatus(trace.getTraceStatus().name())
+                .createdAt(trace.getCreatedAt())
+                .updatedAt(trace.getUpdatedAt())
+                .likeCount(traceLikeRepository.countByTrace_TraceId(trace.getTraceId()))
+                .liked(isLikedByUser(viewerUserId, trace.getTraceId()))
+                .elements(elementResponses)
+                .build();
+    }
+
+    private CustomBoard findCustomBoard(Long customBoardId) {
+        return customBoardRepository.findById(customBoardId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "커스텀 보드를 찾을 수 없습니다."));
+    }
+
+    private void validateCustomBoardMember(Long customBoardId, Long userId) {
+        if (!customBoardMemberRepository.existsByCustomBoard_CustomBoardIdAndUser_UserId(customBoardId, userId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "보드 멤버만 흔적을 남길 수 있습니다.");
+        }
     }
 
     // trace_id 기준 추천 등록

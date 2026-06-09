@@ -230,6 +230,20 @@ public interface TraceRepository extends JpaRepository<Trace, Long> {
             """)
     List<PlaceTraceCount> countActiveTracesByPlaceSince(@Param("startAt") LocalDateTime startAt);
 
+    @Query("""
+            SELECT t
+            FROM Trace t
+            WHERE t.customBoard.customBoardId = :customBoardId
+              AND t.traceStatus = :traceStatus
+            ORDER BY t.createdAt DESC, t.traceId DESC
+            """)
+    List<Trace> findByCustomBoardId(
+            @Param("customBoardId") Long customBoardId,
+            @Param("traceStatus") TraceStatus traceStatus
+    );
+
+    void deleteByUser_UserId(Long userId);
+
     interface PlaceTraceCount {
         String getKakaoPlaceId();
 
