@@ -7,7 +7,12 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
-    private static final String CLOUDFRONT_FRONTEND_URL = "https://d2a908jq2crel3.cloudfront.net";
+
+    private static final String CLOUDFRONT_FRONTEND_URL =
+            "https://d2a908jq2crel3.cloudfront.net";
+
+    private static final String S3_FRONTEND_URL =
+            "http://elasticbeanstalk-ap-northeast-2-988477084982.s3-website.ap-northeast-2.amazonaws.com";
 
     @Value("${app.frontend-base-url:http://localhost:5173}")
     private String frontendBaseUrl;
@@ -18,9 +23,9 @@ public class WebConfig implements WebMvcConfigurer {
                 .allowedOriginPatterns(
                         normalizeOrigin(frontendBaseUrl),
                         CLOUDFRONT_FRONTEND_URL,
+                        S3_FRONTEND_URL,
                         "http://localhost:*",
-                        "http://127.0.0.1:*",
-                        "http://elasticbeanstalk-ap-northeast-2-988477084982.s3-website.ap-northeast-2.amazonaws.com:*"
+                        "http://127.0.0.1:*"
                 )
                 .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
                 .allowedHeaders("*")
