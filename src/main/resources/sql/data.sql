@@ -64,6 +64,44 @@ INSERT IGNORE INTO `like` (like_id, user_id, trace_id, created_at) VALUES
 (9, 8, 3, '2026-06-04 14:32:18'),
 (10, 7, 8, '2026-06-05 14:32:18');
 
+-- user_follow sample
+-- follower_id: user who follows, following_id: user being followed
+INSERT IGNORE INTO user_follow (follow_id, follower_id, following_id, created_at) VALUES
+(1, 1, 2, '2026-06-06 10:00:00'),
+(2, 1, 3, '2026-06-06 10:05:00'),
+(3, 2, 1, '2026-06-06 10:10:00'),
+(4, 3, 2, '2026-06-06 10:15:00'),
+(5, 4, 1, '2026-06-06 10:20:00'),
+(6, 5, 2, '2026-06-06 10:25:00'),
+(7, 6, 3, '2026-06-06 10:30:00'),
+(8, 7, 4, '2026-06-06 10:35:00'),
+(9, 8, 5, '2026-06-06 10:40:00'),
+(10, 9, 6, '2026-06-06 10:45:00');
+
+-- notification sample
+-- receiver_id: user who receives notification, sender_id: user who created trace
+INSERT IGNORE INTO notification (
+    notification_id,
+    receiver_id,
+    sender_id,
+    trace_id,
+    notification_type,
+    message,
+    is_read,
+    read_at,
+    created_at
+) VALUES
+(1, 1, 2, 3, 'FOLLOWING_TRACE_CREATED', 'user2 created a new trace.', 0, NULL, '2026-06-06 11:00:00'),
+(2, 1, 3, 6, 'FOLLOWING_TRACE_CREATED', 'user3 created a new trace.', 1, '2026-06-06 11:20:00', '2026-06-06 11:05:00'),
+(3, 2, 1, 1, 'FOLLOWING_TRACE_CREATED', 'user1 created a new trace.', 0, NULL, '2026-06-06 11:10:00'),
+(4, 3, 2, 4, 'FOLLOWING_TRACE_CREATED', 'user2 created a new trace.', 0, NULL, '2026-06-06 11:15:00'),
+(5, 4, 1, 2, 'FOLLOWING_TRACE_CREATED', 'user1 created a new trace.', 1, '2026-06-06 11:40:00', '2026-06-06 11:20:00'),
+(6, 5, 2, 5, 'FOLLOWING_TRACE_CREATED', 'user2 created a new trace.', 0, NULL, '2026-06-06 11:25:00'),
+(7, 6, 3, 6, 'FOLLOWING_TRACE_CREATED', 'user3 created a new trace.', 0, NULL, '2026-06-06 11:30:00'),
+(8, 7, 4, 7, 'FOLLOWING_TRACE_CREATED', 'user4 created a new trace.', 1, '2026-06-06 11:55:00', '2026-06-06 11:35:00'),
+(9, 8, 5, 8, 'FOLLOWING_TRACE_CREATED', 'user5 created a new trace.', 0, NULL, '2026-06-06 11:40:00'),
+(10, 9, 6, 9, 'FOLLOWING_TRACE_CREATED', 'user6 created a new trace.', 0, NULL, '2026-06-06 11:45:00');
+
 -- report 샘플
 INSERT IGNORE INTO report (report_id, user_id, trace_id, report_kind, created_at, updated_at) VALUES
 (1, 9, 1, '악성 글', '2026-05-27 14:32:18', '2026-05-27 14:32:18'),
