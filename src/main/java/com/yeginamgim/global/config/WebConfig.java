@@ -9,7 +9,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 public class WebConfig implements WebMvcConfigurer {
 
     private static final String CLOUDFRONT_FRONTEND_URL =
-            "https://d2a908jq2crel3.cloudfront.net";
+            "https://d3vvhygufn2oi5.cloudfront.net";
 
     private static final String S3_FRONTEND_URL =
             "http://elasticbeanstalk-ap-northeast-2-988477084982.s3-website.ap-northeast-2.amazonaws.com";
