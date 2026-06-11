@@ -2,6 +2,7 @@ package com.yeginamgim.trace.entity;
 
 import com.yeginamgim.global.entity.BaseTime;
 import com.yeginamgim.board.entity.BoardEntity;
+import com.yeginamgim.customboard.entity.CustomBoard;
 import com.yeginamgim.trace.enums.TraceStatus;
 import com.yeginamgim.user.entity.UserEntity;
 import jakarta.persistence.*;
@@ -32,10 +33,15 @@ public class Trace extends BaseTime {
     @JoinColumn(name = "user_id", nullable = false)
     private UserEntity user;
 
-    /** 흔적이 속한 보드 (FK -> board.board_id) */
+    /** 흔적이 속한 장소 보드 (FK -> board.board_id) — 커스텀 보드 흔적이면 null */
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "board_id", nullable = false)
+    @JoinColumn(name = "board_id", nullable = true)
     private BoardEntity board;
+
+    /** 흔적이 속한 커스텀 보드 (FK -> custom_board.custom_board_id) — 장소 보드 흔적이면 null */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "custom_board_id", nullable = true)
+    private CustomBoard customBoard;
 
     /** 보드 내 X 좌표 (INT, 픽셀 기준) */
     @Column(name = "trace_x", nullable = false)
@@ -60,9 +66,26 @@ public class Trace extends BaseTime {
         this.traceStatus = TraceStatus.HIDE;
     }
 
+    /** board와 customBoard 중 하나만 설정되었는지 검증 */
+    public boolean isValidBoardAssignment() {
+        return (this.board != null) ^ (this.customBoard != null);
+    }
+
+    /** 장소 보드 흔적 생성 */
     public static Trace create(BoardEntity board, UserEntity user, Integer traceX, Integer traceY) {
         return Trace.builder()
                 .board(board)
+                .user(user)
+                .traceX(traceX)
+                .traceY(traceY)
+                .traceStatus(TraceStatus.ACTIVE)
+                .build();
+    }
+
+    /** 커스텀 보드 흔적 생성 */
+    public static Trace createForCustomBoard(CustomBoard customBoard, UserEntity user, Integer traceX, Integer traceY) {
+        return Trace.builder()
+                .customBoard(customBoard)
                 .user(user)
                 .traceX(traceX)
                 .traceY(traceY)
