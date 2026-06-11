@@ -10,6 +10,7 @@ import com.yeginamgim.customboard.repository.CustomBoardMemberRepository;
 import com.yeginamgim.customboard.repository.CustomBoardRepository;
 import com.yeginamgim.global.file.FileService;
 import com.yeginamgim.global.util.PeriodRange;
+import com.yeginamgim.notification.service.NotificationService;
 import com.yeginamgim.place.repository.PlaceCsvStore;
 import com.yeginamgim.trace.dto.RecentTraceResponse;
 import com.yeginamgim.trace.dto.TraceCreateRequest;
@@ -64,6 +65,7 @@ public class TraceService {
     private final FileService fileService;
     private final JWTService jwtService;
     private final PlaceCsvStore placeCsvStore;
+    private final NotificationService notificationService;
 
     // board_id 기준 흔적 목록 조회
     @Transactional(readOnly = true)
@@ -315,6 +317,8 @@ public class TraceService {
             traceElementRepository.saveAll(elements);
         }
 
+        notificationService.createFollowingTraceNotifications(user, trace);
+
         return toTraceResponse(trace, elements, user.getUserId());
     }
 
@@ -404,6 +408,8 @@ public class TraceService {
         if (!elements.isEmpty()) {
             traceElementRepository.saveAll(elements);
         }
+
+        notificationService.createFollowingTraceNotifications(user, trace);
 
         return toCustomBoardTraceResponse(trace, elements, user.getUserId());
     }
