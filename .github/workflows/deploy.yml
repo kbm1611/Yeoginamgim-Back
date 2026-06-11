@@ -4,7 +4,7 @@ on:                         # [필수] 언제 실행할지 정의
 
   push:                     # [필수] push 이벤트 기반 실행
 
-    branches: [ "배포" ]   # [필수] STEP5 브랜치에 push될 때만 실행됨
+    branches: [ "master" ]   # [필수] STEP5 브랜치에 push될 때만 실행됨
 
 jobs:                       # [필수] 작업(Job) 집합 정의
 
