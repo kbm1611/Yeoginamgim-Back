@@ -2,6 +2,7 @@ package com.yeginamgim.notification.dto;
 
 import com.yeginamgim.notification.entity.Notification;
 import com.yeginamgim.notification.enums.NotificationType;
+import com.yeginamgim.board.entity.BoardEntity;
 import com.yeginamgim.trace.entity.Trace;
 import com.yeginamgim.user.entity.UserEntity;
 import org.junit.jupiter.api.Test;
@@ -22,6 +23,7 @@ class NotificationDtoTest {
                 .build();
         Trace trace = Trace.builder()
                 .traceId(10L)
+                .board(BoardEntity.builder().boardId(3L).kakaoPlaceId("place-1").build())
                 .user(sender)
                 .traceX(1)
                 .traceY(2)
@@ -49,5 +51,6 @@ class NotificationDtoTest {
         assertThat(response.getSenderNickname()).isEqualTo("sender");
         assertThat(response.getSenderProfileImageUrl()).isEqualTo("https://image.example/sender.png");
         assertThat(response.getTraceId()).isEqualTo(10L);
+        assertThat(response.getBoardId()).isEqualTo(3L);
     }
 }
