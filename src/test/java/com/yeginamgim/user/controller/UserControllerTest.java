@@ -7,6 +7,7 @@ import com.yeginamgim.user.dto.request.UserUpdateRequestDto;
 import com.yeginamgim.user.dto.response.UserSignupResponseDto;
 import com.yeginamgim.user.dto.request.UserWithdrawRequestDto;
 import com.yeginamgim.user.dto.response.UserInfoResponseDto;
+import com.yeginamgim.user.dto.response.UserSearchResponseDto;
 import com.yeginamgim.user.dto.response.UserWithdrawResponseDto;
 import com.yeginamgim.user.service.UserService;
 import org.junit.jupiter.api.Test;
@@ -15,6 +16,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -26,6 +28,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -94,6 +97,29 @@ class UserControllerTest {
         assertThatThrownBy(() -> userController.getMyInfo(null))
                 .isInstanceOf(InvalidTokenException.class);
         verify(jwtService).extractEmailFromBearerToken(null);
+    }
+
+    @Test
+    void searchUsersDelegatesTokenSubjectAndKeywordToUserService() throws Exception {
+        when(jwtService.extractEmailFromBearerToken("Bearer token")).thenReturn("user@example.com");
+        when(userService.searchUsers("user@example.com", "여행")).thenReturn(List.of(
+                UserSearchResponseDto.builder()
+                        .userId(2L)
+                        .nickname("여행친구")
+                        .profileImageUrl("/upload/profile/friend.png")
+                        .build()
+        ));
+
+        mockMvc.perform(get("/api/user/search")
+                        .header("Authorization", "Bearer token")
+                        .param("keyword", "여행"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].userId").value(2L))
+                .andExpect(jsonPath("$[0].nickname").value("여행친구"))
+                .andExpect(jsonPath("$[0].profileImageUrl").value("/upload/profile/friend.png"));
+
+        verify(jwtService).extractEmailFromBearerToken("Bearer token");
+        verify(userService).searchUsers("user@example.com", "여행");
     }
 
     @Test

@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -35,6 +36,15 @@ public class UserController {
     public ResponseEntity<?> getMyInfo(@RequestHeader(value = "Authorization", required = false) String token) {
         String email = jwtSvc.extractEmailFromBearerToken(token);
         return ResponseEntity.ok(userSvc.getMyInfo(email));
+    }
+
+    @GetMapping("/search")
+    public ResponseEntity<?> searchUsers(
+            @RequestHeader(value = "Authorization", required = false) String token,
+            @RequestParam(value = "keyword", required = false) String keyword
+    ) {
+        String email = jwtSvc.extractEmailFromBearerToken(token);
+        return ResponseEntity.ok(userSvc.searchUsers(email, keyword));
     }
 
     @PatchMapping("/update")
