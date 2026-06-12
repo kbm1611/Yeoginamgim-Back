@@ -16,7 +16,7 @@ import java.util.UUID;
 
 @Service
 public class FileService {
-    private static final long MAX_FILE_SIZE = 5 * 1024 * 1024;
+    private static final long MAX_FILE_SIZE = 10 * 1024 * 1024;
     private static final String PROFILE_URL_PREFIX = "/upload/profile/";
     private static final Set<String> ALLOWED_IMAGE_CONTENT_TYPES = Set.of(
             "image/jpeg",
