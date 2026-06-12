@@ -20,6 +20,7 @@ public class FileService {
     private static final String PROFILE_URL_PREFIX = "/upload/profile/";
     private static final Set<String> ALLOWED_IMAGE_CONTENT_TYPES = Set.of(
             "image/jpeg",
+            "image/jpg",
             "image/png",
             "image/webp"
     );
@@ -143,7 +144,7 @@ public class FileService {
 
     private boolean hasImageSignature(byte[] header, int read, String contentType) {
         return switch (contentType) {
-            case "image/jpeg" -> read >= 3
+            case "image/jpeg", "image/jpg" -> read >= 3
                     && (header[0] & 0xFF) == 0xFF
                     && (header[1] & 0xFF) == 0xD8
                     && (header[2] & 0xFF) == 0xFF;
