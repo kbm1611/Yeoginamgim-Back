@@ -71,4 +71,18 @@ class FollowControllerTest {
 
         verify(followService).getFollowers(2L);
     }
+
+    @Test
+    void followStatusEndpointDelegatesAuthorizationHeader() throws Exception {
+        when(followService.getFollowStatus(2L, "Bearer token"))
+                .thenReturn(FollowResponse.of(2L, true, 5L, 3L));
+
+        mockMvc.perform(get("/api/users/2/follow-status")
+                        .header("Authorization", "Bearer token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.targetUserId").value(2))
+                .andExpect(jsonPath("$.following").value(true));
+
+        verify(followService).getFollowStatus(2L, "Bearer token");
+    }
 }

@@ -49,6 +49,17 @@ public class FollowService {
     }
 
     @Transactional(readOnly = true)
+    public FollowResponse getFollowStatus(Long targetUserId, String authorization) {
+        UserEntity follower = findUserByToken(authorization);
+        validateNotSelf(follower.getUserId(), targetUserId);
+        UserEntity following = findActiveUser(targetUserId);
+        boolean followingStatus = followRepository.existsByFollower_UserIdAndFollowing_UserId(
+                follower.getUserId(), following.getUserId());
+
+        return toFollowResponse(follower.getUserId(), following.getUserId(), followingStatus);
+    }
+
+    @Transactional(readOnly = true)
     public List<FollowUserResponse> getFollowers(Long userId) {
         findActiveUser(userId);
 

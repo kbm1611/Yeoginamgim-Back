@@ -56,6 +56,7 @@ public class UserEntity extends BaseTime {
 
     public UserInfoResponseDto toInfoDto(){
         return UserInfoResponseDto.builder()
+                .userId(userId)
                 .email(email)
                 .nickname(nickname)
                 .profileImageUrl( profileImageUrl )

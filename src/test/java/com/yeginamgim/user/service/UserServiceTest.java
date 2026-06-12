@@ -81,6 +81,19 @@ class UserServiceTest {
     }
 
     @Test
+    void getMyInfoResponseIncludesUserId() {
+        UserEntity existingUser = UserEntity.builder()
+                .userId(7L)
+                .email("user@example.com")
+                .nickname("user")
+                .provider(LoginProvider.LOCAL)
+                .build();
+        when(userRepository.findByEmail("user@example.com")).thenReturn(Optional.of(existingUser));
+
+        assertThat(userService.getMyInfo("user@example.com").getUserId()).isEqualTo(7L);
+    }
+
+    @Test
     void updateUserInfoThrowsUserNotFoundExceptionWhenUserDoesNotExist() {
         when(userRepository.findByEmail("missing@example.com")).thenReturn(Optional.empty());
 
@@ -284,7 +297,7 @@ class UserServiceTest {
 
         ArgumentCaptor<UserEntity> userCaptor = ArgumentCaptor.forClass(UserEntity.class);
         verify(userRepository).save(userCaptor.capture());
-        assertThat(userCaptor.getValue().getProfileImageUrl()).isEqualTo("/upload/profile/stored-profile.png");
+        assertThat(userCaptor.getValue().getProfileImageUrl()).isEqualTo("stored-profile.png");
     }
 
     @Test

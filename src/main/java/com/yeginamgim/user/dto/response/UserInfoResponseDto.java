@@ -13,6 +13,7 @@ import org.springframework.web.multipart.MultipartFile;
 @NoArgsConstructor
 // 회원 정보 응답에 대한 Dto
 public class UserInfoResponseDto {
+    private Long userId;
     private String email;
     private String nickname;
     private String profileImageUrl;

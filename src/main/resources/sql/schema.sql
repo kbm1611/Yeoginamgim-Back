@@ -93,3 +93,35 @@ CREATE TABLE IF NOT EXISTS report (
     CONSTRAINT fk_report_user FOREIGN KEY (user_id) REFERENCES users (user_id),
     CONSTRAINT fk_report_trace FOREIGN KEY (trace_id) REFERENCES trace (trace_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS user_follow (
+    follow_id BIGINT NOT NULL AUTO_INCREMENT,
+    follower_id BIGINT NOT NULL,
+    following_id BIGINT NOT NULL,
+    created_at DATETIME(6) NOT NULL,
+    PRIMARY KEY (follow_id),
+    UNIQUE KEY uk_user_follow_follower_following (follower_id, following_id),
+    KEY idx_user_follow_follower_id (follower_id),
+    KEY idx_user_follow_following_id (following_id),
+    CONSTRAINT fk_user_follow_follower FOREIGN KEY (follower_id) REFERENCES users (user_id),
+    CONSTRAINT fk_user_follow_following FOREIGN KEY (following_id) REFERENCES users (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS notification (
+    notification_id BIGINT NOT NULL AUTO_INCREMENT,
+    receiver_id BIGINT NOT NULL,
+    sender_id BIGINT NOT NULL,
+    trace_id BIGINT NULL,
+    notification_type VARCHAR(50) NOT NULL,
+    message VARCHAR(255) NOT NULL,
+    is_read BIT NOT NULL DEFAULT 0,
+    read_at DATETIME(6) NULL,
+    created_at DATETIME(6) NOT NULL,
+    PRIMARY KEY (notification_id),
+    KEY idx_notification_receiver_read_created (receiver_id, is_read, created_at),
+    KEY idx_notification_receiver_created (receiver_id, created_at),
+    KEY idx_notification_trace_id (trace_id),
+    CONSTRAINT fk_notification_receiver FOREIGN KEY (receiver_id) REFERENCES users (user_id),
+    CONSTRAINT fk_notification_sender FOREIGN KEY (sender_id) REFERENCES users (user_id),
+    CONSTRAINT fk_notification_trace FOREIGN KEY (trace_id) REFERENCES trace (trace_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

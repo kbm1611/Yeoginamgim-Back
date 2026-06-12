@@ -37,6 +37,14 @@ public class FollowController {
         return followService.unfollow(userId, authorization);
     }
 
+    @GetMapping("/users/{userId}/follow-status")
+    public FollowResponse getFollowStatus(
+            @PathVariable Long userId,
+            @RequestHeader(value = "Authorization", required = false) String authorization
+    ) {
+        return followService.getFollowStatus(userId, authorization);
+    }
+
     @GetMapping("/users/{userId}/followers")
     public List<FollowUserResponse> getFollowers(@PathVariable Long userId) {
         return followService.getFollowers(userId);

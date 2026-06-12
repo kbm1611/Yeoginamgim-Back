@@ -21,6 +21,7 @@ public class NotificationResponse {
     private Long senderUserId;
     private String senderNickname;
     private String senderProfileImageUrl;
+    private Long boardId;
     private Long traceId;
 
     public static NotificationResponse from(Notification notification) {
@@ -37,6 +38,7 @@ public class NotificationResponse {
                 .senderUserId(sender == null ? null : sender.getUserId())
                 .senderNickname(sender == null ? null : sender.getNickname())
                 .senderProfileImageUrl(sender == null ? null : sender.getProfileImageUrl())
+                .boardId(trace == null || trace.getBoard() == null ? null : trace.getBoard().getBoardId())
                 .traceId(trace == null ? null : trace.getTraceId())
                 .build();
     }

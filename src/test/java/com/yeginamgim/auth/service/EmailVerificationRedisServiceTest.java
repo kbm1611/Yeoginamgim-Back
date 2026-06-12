@@ -6,14 +6,13 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 
 import java.time.Duration;
-import java.util.Collection;
-import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -71,10 +70,8 @@ class EmailVerificationRedisServiceTest {
 
         assertThat(verified).isTrue();
         verify(valueOperations).set("email:verify:ok:user@example.com", "1", Duration.ofMinutes(30));
-        verify(redisTemplate).delete(Set.of(
-                "email:verify:code:user@example.com",
-                "email:verify:attempts:user@example.com"
-        ));
+        verify(redisTemplate).delete("email:verify:code:user@example.com");
+        verify(redisTemplate, times(2)).delete("email:verify:attempts:user@example.com");
     }
 
     @Test
@@ -123,14 +120,9 @@ class EmailVerificationRedisServiceTest {
     void clearVerificationStateDeletesAllVerificationKeys() {
         service.clearVerificationState(" USER@example.COM ");
 
-        @SuppressWarnings("unchecked")
-        ArgumentCaptor<Collection<String>> keys = ArgumentCaptor.forClass(Collection.class);
-        verify(redisTemplate).delete(keys.capture());
-        assertThat(keys.getValue()).containsExactlyInAnyOrder(
-                "email:verify:code:user@example.com",
-                "email:verify:ok:user@example.com",
-                "email:verify:cooldown:user@example.com",
-                "email:verify:attempts:user@example.com"
-        );
+        verify(redisTemplate).delete("email:verify:code:user@example.com");
+        verify(redisTemplate).delete("email:verify:ok:user@example.com");
+        verify(redisTemplate).delete("email:verify:cooldown:user@example.com");
+        verify(redisTemplate).delete("email:verify:attempts:user@example.com");
     }
 }

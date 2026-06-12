@@ -3,7 +3,7 @@ package com.yeginamgim.global.exception;
 import org.springframework.http.HttpStatus;
 
 public class FileUploadException extends RuntimeException {
-    private static final String FILE_SIZE_EXCEEDED_MESSAGE = "File size must not exceed 5MB.";
+    private static final String FILE_SIZE_EXCEEDED_MESSAGE = "File size must not exceed 10MB.";
     private static final String UNSUPPORTED_FILE_TYPE_MESSAGE = "Only JPEG, PNG, and WebP images can be uploaded.";
     private static final String INVALID_IMAGE_FILE_MESSAGE = "The uploaded file is not a valid image.";
     private static final String FILE_UPLOAD_FAILED_MESSAGE = "File upload failed.";
