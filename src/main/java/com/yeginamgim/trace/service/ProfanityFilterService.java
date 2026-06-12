@@ -13,8 +13,8 @@ import java.util.List;
 @RequiredArgsConstructor
 public class ProfanityFilterService {
 
-    private static final String BLOCKED_MESSAGE = "부적절한 표현이 포함되어 있습니다.";
-    private static final String UNAVAILABLE_MESSAGE = "부적절한 표현을 확인할 수 없습니다. 잠시 후 다시 시도해 주세요.";
+    private static final String BLOCKED_MESSAGE = "부적절한 표현이 포함되어 저장할 수 없습니다.";
+    private static final String UNAVAILABLE_MESSAGE = "지금은 입력 내용을 안전하게 검사할 수 없어 저장하지 않았습니다. 잠시 후 다시 시도해주세요.";
 
     private final ProfanityFilterClient profanityFilterClient;
     private final ProfanityProperties properties;
@@ -58,21 +58,21 @@ public class ProfanityFilterService {
         } catch (ProfanityFilterException exception) {
             if (properties.isFailOpen()) {
                 log.warn(
-                        "Profanity filter unavailable; fail-open allowed trace text. textCount={}, totalLength={}, errorType={}",
+                        "Profanity filter unavailable; fail-open allowed trace text. textCount={}, totalLength={}, reason={}",
                         textCount,
                         totalLength,
-                        exception.getClass().getSimpleName()
+                        exception.getMessage()
                 );
                 return;
             }
 
             log.warn(
-                    "Profanity filter unavailable; fail-closed rejected trace text. textCount={}, totalLength={}, errorType={}",
+                    "Profanity filter unavailable; fail-closed rejected trace text. textCount={}, totalLength={}, reason={}",
                     textCount,
                     totalLength,
-                    exception.getClass().getSimpleName()
+                    exception.getMessage()
             );
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, UNAVAILABLE_MESSAGE);
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, UNAVAILABLE_MESSAGE);
         }
     }
 
