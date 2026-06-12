@@ -1,13 +1,11 @@
 package com.yeginamgim.global.file;
 
 import com.yeginamgim.global.exception.FileUploadException;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.util.Locale;
@@ -17,7 +15,6 @@ import java.util.UUID;
 @Service
 public class FileService {
     private static final long MAX_FILE_SIZE = 10 * 1024 * 1024;
-    private static final String PROFILE_URL_PREFIX = "/upload/profile/";
     private static final Set<String> ALLOWED_IMAGE_CONTENT_TYPES = Set.of(
             "image/jpeg",
             "image/jpg",
@@ -25,62 +22,27 @@ public class FileService {
             "image/webp"
     );
 
-    private final Path uploadRoot;
-    private final Path profileUploadDir;
-    private final Path boardUploadDir;
-    private final S3Service s3Service;
+    private final FileStorageService storageService;
 
-    @Autowired
-    public FileService(S3Service s3Service) {
-        this(s3Service, Path.of(System.getProperty("user.dir"), "uploads"));
-    }
-
-    FileService(S3Service s3Service, Path uploadRoot) {
-        this.s3Service = s3Service;
-        this.uploadRoot = uploadRoot.toAbsolutePath().normalize();
-        this.profileUploadDir = this.uploadRoot.resolve("profile").normalize();
-        this.boardUploadDir = this.uploadRoot.resolve("board").normalize();
+    public FileService(FileStorageService storageService) {
+        this.storageService = storageService;
     }
 
     public String profileUpload(MultipartFile uploadFile) {
-        return upload(uploadFile, profileUploadDir, "profile");
+        return upload(uploadFile, "profile");
     }
 
     public String boardUpload(MultipartFile uploadFile) {
-        return upload(uploadFile, boardUploadDir, "board");
+        return upload(uploadFile, "board");
     }
 
     public void deleteProfileFile(String profileImageUrl) {
         if (profileImageUrl == null || profileImageUrl.isBlank()) return;
 
-        if (profileImageUrl.startsWith("http://") || profileImageUrl.startsWith("https://")) {
-            s3Service.deleteFile(profileImageUrl);
-            return;
-        }
-
-        if (!profileImageUrl.startsWith(PROFILE_URL_PREFIX)) return;
-
-        String fileName = profileImageUrl.substring(PROFILE_URL_PREFIX.length());
-        if (fileName.isBlank()) return;
-
-        String safeFileName;
-        try {
-            safeFileName = Path.of(fileName).getFileName().toString();
-        } catch (InvalidPathException e) {
-            return;
-        }
-        Path deletePath = profileUploadDir.resolve(safeFileName).normalize();
-
-        if (!deletePath.startsWith(profileUploadDir)) return;
-
-        try {
-            Files.deleteIfExists(deletePath);
-        } catch (IOException e) {
-            return;
-        }
+        storageService.delete(profileImageUrl);
     }
 
-    private String upload(MultipartFile uploadFile, Path uploadDir, String s3DirectoryName) {
+    private String upload(MultipartFile uploadFile, String directoryName) {
         if (uploadFile == null || uploadFile.isEmpty()) return null;
         if (uploadFile.getSize() > MAX_FILE_SIZE) throw FileUploadException.fileTooLarge();
 
@@ -91,18 +53,11 @@ public class FileService {
         validateImageSignature(uploadFile, contentType);
 
         String fileName = UUID.randomUUID() + "_" + safeOriginalFilename(uploadFile.getOriginalFilename());
-        Path safeUploadDir = uploadDir.toAbsolutePath().normalize();
-        Path uploadRealPath = safeUploadDir.resolve(fileName).normalize();
-
-        if (!uploadRealPath.startsWith(safeUploadDir)) {
-            throw FileUploadException.uploadFailed();
-        }
 
         try {
-//            Files.createDirectories(safeUploadDir);
-//            uploadFile.transferTo(uploadRealPath.toFile());
-//            return fileName;
-            return s3Service.uploadFile(uploadFile, s3DirectoryName);
+            return storageService.upload(uploadFile, directoryName, fileName);
+        } catch (FileUploadException exception) {
+            throw exception;
         } catch (RuntimeException e) {
             throw FileUploadException.uploadFailed();
         }
