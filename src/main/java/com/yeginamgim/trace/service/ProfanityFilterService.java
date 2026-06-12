@@ -27,6 +27,15 @@ public class ProfanityFilterService {
         int textCount = texts.size();
         int totalLength = texts.stream().mapToInt(String::length).sum();
 
+        if (!properties.isEnabled()) {
+            log.info(
+                    "Profanity filter disabled; skipped trace text check. textCount={}, totalLength={}",
+                    textCount,
+                    totalLength
+            );
+            return;
+        }
+
         try {
             ProfanityCheckResponse response = profanityFilterClient.check(texts);
             if (isBlocked(response)) {

@@ -29,6 +29,15 @@ class ProfanityFilterServiceTest {
     }
 
     @Test
+    void validateTextsSkipsClientWhenFilterIsDisabled() {
+        properties.setEnabled(false);
+
+        assertThatCode(() -> profanityFilterService.validateTexts(List.of("검사 문장")))
+                .doesNotThrowAnyException();
+        verifyNoInteractions(profanityFilterClient);
+    }
+
+    @Test
     void validateTextsAllowsCleanResponse() {
         when(profanityFilterClient.check(List.of("좋은 기억")))
                 .thenReturn(new ProfanityCheckResponse(
