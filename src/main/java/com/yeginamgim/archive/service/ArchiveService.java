@@ -46,7 +46,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class ArchiveService {
 
-    private final TraceRepository traceRepository;
+        private final TraceRepository traceRepository;
     private final TraceElementRepository traceElementRepository;
     private final TraceLikeRepository traceLikeRepository;
     private final FavoritePlaceRepository favoritePlaceRepository;
