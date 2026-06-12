@@ -13,5 +13,6 @@ public class ProfanityProperties {
     private String apiUrl;
     private Duration connectTimeout = Duration.ofSeconds(2);
     private Duration readTimeout = Duration.ofSeconds(5);
+    private boolean enabled = true;
     private boolean failOpen = false;
 }
