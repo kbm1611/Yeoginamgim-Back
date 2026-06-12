@@ -14,7 +14,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
-    private static final String FILE_SIZE_EXCEEDED_MESSAGE = "File size must not exceed 5MB.";
+    private static final String FILE_SIZE_EXCEEDED_MESSAGE = "File size must not exceed 10MB.";
 
     @ExceptionHandler(DuplicateMemberException.class)
     public ResponseEntity<ErrorResponse> handleDuplicateMember(DuplicateMemberException e) {
