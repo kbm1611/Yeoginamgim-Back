@@ -66,6 +66,7 @@ public class TraceService {
     private final JWTService jwtService;
     private final PlaceCsvStore placeCsvStore;
     private final NotificationService notificationService;
+    private final ProfanityFilterService profanityFilterService;
 
     // board_id 기준 흔적 목록 조회
     @Transactional(readOnly = true)
@@ -303,6 +304,7 @@ public class TraceService {
 
         BoardEntity board = findBoard(boardId);
         UserEntity user = findUserByToken(authorization);
+        validateCreateTextContent(request);
 
         Trace trace = traceRepository.save(Trace.create(board, user, request.getTraceX(), request.getTraceY()));
 
@@ -360,6 +362,8 @@ public class TraceService {
                 .findByTraceIdAndUser_UserIdAndTraceStatus(traceId, user.getUserId(), TraceStatus.ACTIVE)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "수정할 수 있는 흔적을 찾을 수 없습니다."));
 
+        validateUpdateTextContent(request);
+
         if (request.getTraceX() != null) {
             trace.setTraceX(request.getTraceX());
         }
@@ -395,6 +399,7 @@ public class TraceService {
         UserEntity user = findUserByToken(authorization);
         CustomBoard customBoard = findCustomBoard(customBoardId);
         validateCustomBoardMember(customBoardId, user.getUserId());
+        validateCreateTextContent(request);
 
         Trace trace = traceRepository.save(Trace.createForCustomBoard(customBoard, user, request.getTraceX(), request.getTraceY()));
 
@@ -616,6 +621,46 @@ public class TraceService {
                 request.getElementY(),
                 request.getStyleJson()
         );
+    }
+
+    private void validateCreateTextContent(TraceCreateRequest request) {
+        List<String> texts = collectCreateTextContents(request.getElements());
+        if (!texts.isEmpty()) {
+            profanityFilterService.validateTexts(texts);
+        }
+    }
+
+    private void validateUpdateTextContent(TraceUpdateRequest request) {
+        List<String> texts = collectUpdateTextContents(request.getElements());
+        if (!texts.isEmpty()) {
+            profanityFilterService.validateTexts(texts);
+        }
+    }
+
+    private List<String> collectCreateTextContents(List<TraceElementCreateRequest> elementRequests) {
+        if (elementRequests == null || elementRequests.isEmpty()) {
+            return List.of();
+        }
+
+        return elementRequests.stream()
+                .filter(elementRequest -> elementRequest != null)
+                .map(TraceElementCreateRequest::getTextContent)
+                .filter(StringUtils::hasText)
+                .map(String::trim)
+                .toList();
+    }
+
+    private List<String> collectUpdateTextContents(List<TraceElementUpdateRequest> elementRequests) {
+        if (elementRequests == null || elementRequests.isEmpty()) {
+            return List.of();
+        }
+
+        return elementRequests.stream()
+                .filter(elementRequest -> elementRequest != null)
+                .map(TraceElementUpdateRequest::getTextContent)
+                .filter(StringUtils::hasText)
+                .map(String::trim)
+                .toList();
     }
 
     private void updateTraceElements(Trace trace, List<TraceElementUpdateRequest> elementRequests) {
