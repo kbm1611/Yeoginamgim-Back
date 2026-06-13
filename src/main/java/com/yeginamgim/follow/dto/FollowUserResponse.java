@@ -4,7 +4,7 @@ import com.yeginamgim.user.entity.UserEntity;
 import lombok.Builder;
 import lombok.Data;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Data
 @Builder
@@ -13,9 +13,9 @@ public class FollowUserResponse {
     private Long userId;
     private String nickname;
     private String profileImageUrl;
-    private LocalDateTime followedAt;
+    private Instant followedAt;
 
-    public static FollowUserResponse from(UserEntity user, LocalDateTime followedAt) {
+    public static FollowUserResponse from(UserEntity user, Instant followedAt) {
         return FollowUserResponse.builder()
                 .userId(user.getUserId())
                 .nickname(user.getNickname())

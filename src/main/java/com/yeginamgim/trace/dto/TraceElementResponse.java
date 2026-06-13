@@ -6,7 +6,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 // 흔적 요소 응답 DTO
 @Data
@@ -21,8 +21,8 @@ public class TraceElementResponse {
     private Integer elementX;
     private Integer elementY;
     private String styleJson;
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
+    private Instant createdAt;
+    private Instant updatedAt;
 
     public static TraceElementResponse from(TraceElement element) {
         return TraceElementResponse.builder()

@@ -7,7 +7,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Data
 @NoArgsConstructor
@@ -18,7 +18,7 @@ public class InviteInfoResponse {
     private String boardTitle;
     private String boardImageUrl;
     private String inviterNickname;
-    private LocalDateTime expiredAt;
+    private Instant expiredAt;
 
     public static InviteInfoResponse from(CustomBoardInvite invite) {
         CustomBoard board = invite.getCustomBoard();

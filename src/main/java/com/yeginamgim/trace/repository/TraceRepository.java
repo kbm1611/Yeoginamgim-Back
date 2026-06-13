@@ -8,7 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -32,7 +32,7 @@ public interface TraceRepository extends JpaRepository<Trace, Long> {
     List<Trace> findBoardTracesLatest(
             @Param("boardId") Long boardId,
             @Param("traceStatus") TraceStatus traceStatus,
-            @Param("before") LocalDateTime before,
+            @Param("before") Instant before,
             Pageable pageable
     );
 
@@ -47,7 +47,7 @@ public interface TraceRepository extends JpaRepository<Trace, Long> {
     List<Trace> findBoardTracesOldest(
             @Param("boardId") Long boardId,
             @Param("traceStatus") TraceStatus traceStatus,
-            @Param("before") LocalDateTime before,
+            @Param("before") Instant before,
             Pageable pageable
     );
 
@@ -66,7 +66,7 @@ public interface TraceRepository extends JpaRepository<Trace, Long> {
     List<Trace> findBoardTracesPopular(
             @Param("boardId") Long boardId,
             @Param("traceStatus") TraceStatus traceStatus,
-            @Param("before") LocalDateTime before,
+            @Param("before") Instant before,
             Pageable pageable
     );
 
@@ -87,7 +87,7 @@ public interface TraceRepository extends JpaRepository<Trace, Long> {
             @Param("maxX") Integer maxX,
             @Param("minY") Integer minY,
             @Param("maxY") Integer maxY,
-            @Param("before") LocalDateTime before,
+            @Param("before") Instant before,
             Pageable pageable
     );
 
@@ -108,7 +108,7 @@ public interface TraceRepository extends JpaRepository<Trace, Long> {
             @Param("maxX") Integer maxX,
             @Param("minY") Integer minY,
             @Param("maxY") Integer maxY,
-            @Param("before") LocalDateTime before,
+            @Param("before") Instant before,
             Pageable pageable
     );
 
@@ -133,7 +133,7 @@ public interface TraceRepository extends JpaRepository<Trace, Long> {
             @Param("maxX") Integer maxX,
             @Param("minY") Integer minY,
             @Param("maxY") Integer maxY,
-            @Param("before") LocalDateTime before,
+            @Param("before") Instant before,
             Pageable pageable
     );
 
@@ -151,8 +151,8 @@ public interface TraceRepository extends JpaRepository<Trace, Long> {
     List<Trace> findByUser_UserIdAndTraceStatusAndCreatedAtGreaterThanEqualAndCreatedAtLessThanOrderByCreatedAtDescTraceIdDesc(
             Long userId,
             TraceStatus traceStatus,
-            LocalDateTime startAt,
-            LocalDateTime endAt
+            Instant startAt,
+            Instant endAt
     );
 
     @Query("""
@@ -164,7 +164,7 @@ public interface TraceRepository extends JpaRepository<Trace, Long> {
             """)
     List<Trace> findRecentActiveTracesSince(
             @Param("traceStatus") TraceStatus traceStatus,
-            @Param("startAt") LocalDateTime startAt,
+            @Param("startAt") Instant startAt,
             Pageable pageable
     );
 
@@ -178,7 +178,7 @@ public interface TraceRepository extends JpaRepository<Trace, Long> {
             """)
     List<Trace> findRecentActiveTracesByKakaoPlaceIdsSince(
             @Param("traceStatus") TraceStatus traceStatus,
-            @Param("startAt") LocalDateTime startAt,
+            @Param("startAt") Instant startAt,
             @Param("kakaoPlaceIds") Collection<String> kakaoPlaceIds,
             Pageable pageable
     );
@@ -228,7 +228,7 @@ public interface TraceRepository extends JpaRepository<Trace, Long> {
             group by trace.board.kakaoPlaceId
             order by count(trace) desc, trace.board.kakaoPlaceId asc
             """)
-    List<PlaceTraceCount> countActiveTracesByPlaceSince(@Param("startAt") LocalDateTime startAt);
+    List<PlaceTraceCount> countActiveTracesByPlaceSince(@Param("startAt") Instant startAt);
 
     @Query("""
             SELECT t

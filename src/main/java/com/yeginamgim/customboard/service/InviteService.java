@@ -19,7 +19,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
 @Service
@@ -42,7 +43,7 @@ public class InviteService {
         customBoardService.validateMember(customBoardId, user.getUserId());
 
         String inviteCode = UUID.randomUUID().toString().replace("-", "");
-        LocalDateTime expiredAt = LocalDateTime.now().plusDays(INVITE_EXPIRE_DAYS);
+        Instant expiredAt = Instant.now().plus(INVITE_EXPIRE_DAYS, ChronoUnit.DAYS);
 
         CustomBoardInvite invite = customBoardInviteRepository.save(
                 CustomBoardInvite.create(board, user, inviteCode, expiredAt)

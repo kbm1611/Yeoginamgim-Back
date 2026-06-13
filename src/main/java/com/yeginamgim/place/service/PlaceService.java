@@ -19,7 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -174,7 +174,7 @@ public class PlaceService {
             Double latitude,
             Double longitude,
             Integer radius,
-            LocalDateTime startAt,
+            Instant startAt,
             boolean periodScoped
     ) {
         int normalizedLimit = placeSearchRequestValidator.normalizeLimit(limit);

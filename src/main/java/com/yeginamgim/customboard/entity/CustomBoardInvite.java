@@ -8,7 +8,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Entity
 @Table(name = "custom_board_invite")
@@ -40,21 +40,21 @@ public class CustomBoardInvite {
 
     /** 초대 링크 만료 시각 */
     @Column(name = "expired_at", nullable = false)
-    private LocalDateTime expiredAt;
+    private Instant expiredAt;
 
     @Column(name = "created_at", nullable = false)
-    private LocalDateTime createdAt;
+    private Instant createdAt;
 
     @PrePersist
     private void prePersist() {
-        this.createdAt = LocalDateTime.now();
+        this.createdAt = Instant.now();
     }
 
     public boolean isExpired() {
-        return LocalDateTime.now().isAfter(this.expiredAt);
+        return Instant.now().isAfter(this.expiredAt);
     }
 
-    public static CustomBoardInvite create(CustomBoard customBoard, UserEntity user, String inviteCode, LocalDateTime expiredAt) {
+    public static CustomBoardInvite create(CustomBoard customBoard, UserEntity user, String inviteCode, Instant expiredAt) {
         return CustomBoardInvite.builder()
                 .customBoard(customBoard)
                 .user(user)

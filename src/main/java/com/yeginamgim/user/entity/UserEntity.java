@@ -10,7 +10,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 
 @Entity
@@ -21,7 +22,7 @@ import java.time.format.DateTimeFormatter;
 @NoArgsConstructor
 public class UserEntity extends BaseTime {
     private static final DateTimeFormatter WITHDRAWN_EMAIL_TIME_FORMATTER =
-            DateTimeFormatter.ofPattern("yyyyMMddHHmmssSSS");
+            DateTimeFormatter.ofPattern("yyyyMMddHHmmssSSS").withZone(ZoneOffset.UTC);
     private static final String WITHDRAWN_NICKNAME = "탈퇴한 사용자";
 
     @Id
@@ -52,7 +53,7 @@ public class UserEntity extends BaseTime {
     private String providerId;
 
     @Column(name = "deleted_at")
-    private LocalDateTime deletedAt;
+    private Instant deletedAt;
 
     public UserInfoResponseDto toInfoDto(){
         return UserInfoResponseDto.builder()
@@ -70,7 +71,7 @@ public class UserEntity extends BaseTime {
     }
 
     public void withdraw() {
-        LocalDateTime withdrawnAt = LocalDateTime.now();
+        Instant withdrawnAt = Instant.now();
         this.deletedAt = withdrawnAt;
         this.email = createWithdrawnEmail(withdrawnAt);
         this.password = null;
@@ -79,7 +80,7 @@ public class UserEntity extends BaseTime {
         this.birthDate = null;
     }
 
-    private String createWithdrawnEmail(LocalDateTime withdrawnAt) {
+    private String createWithdrawnEmail(Instant withdrawnAt) {
         String idPart = userId == null ? "unknown" : userId.toString();
         return "withdrawn-" + idPart + "-"
                 + WITHDRAWN_EMAIL_TIME_FORMATTER.format(withdrawnAt)

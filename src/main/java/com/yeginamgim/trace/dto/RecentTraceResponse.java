@@ -5,7 +5,7 @@ import com.yeginamgim.trace.entity.Trace;
 import lombok.Builder;
 import lombok.Data;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Data
 @Builder
@@ -15,7 +15,7 @@ public class RecentTraceResponse {
     private String placeName;
     private String previewText;
     private String imageUrl;
-    private LocalDateTime createdAt;
+    private Instant createdAt;
     private Long likeCount;
     private String nickname;
 

@@ -6,7 +6,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 // 보드 기본 정보와 장소 상세 정보 응답 DTO
 @Data
@@ -16,7 +16,7 @@ import java.time.LocalDateTime;
 public class BoardDetailResponse {
     private Long boardId;
     private String kakaoPlaceId;
-    private LocalDateTime createdAt;
+    private Instant createdAt;
     private Long traceCount;
     private PlaceInfo place;
 

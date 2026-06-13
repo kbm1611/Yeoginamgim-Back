@@ -33,9 +33,10 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.Instant;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.YearMonth;
+import java.time.ZoneId;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -45,6 +46,8 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class ArchiveService {
+
+    private static final ZoneId SEOUL_ZONE = ZoneId.of("Asia/Seoul");
 
         private final TraceRepository traceRepository;
     private final TraceElementRepository traceElementRepository;
@@ -88,8 +91,8 @@ public class ArchiveService {
         validateMonth(month);
 
         YearMonth yearMonth = YearMonth.of(year, month);
-        LocalDateTime startAt = yearMonth.atDay(1).atStartOfDay();
-        LocalDateTime endAt = yearMonth.plusMonths(1).atDay(1).atStartOfDay();
+        Instant startAt = yearMonth.atDay(1).atStartOfDay(SEOUL_ZONE).toInstant();
+        Instant endAt = yearMonth.plusMonths(1).atDay(1).atStartOfDay(SEOUL_ZONE).toInstant();
 
         List<Trace> traces = traceRepository
                 .findByUser_UserIdAndTraceStatusAndCreatedAtGreaterThanEqualAndCreatedAtLessThanOrderByCreatedAtDescTraceIdDesc(
@@ -101,7 +104,7 @@ public class ArchiveService {
 
         Map<LocalDate, List<TraceResponse>> tracesByDate = toTraceResponses(traces, userId).stream()
                 .collect(Collectors.groupingBy(
-                        trace -> trace.getCreatedAt().toLocalDate(),
+                        trace -> trace.getCreatedAt().atZone(SEOUL_ZONE).toLocalDate(),
                         LinkedHashMap::new,
                         Collectors.toList()
                 ));

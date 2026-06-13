@@ -6,7 +6,7 @@ import com.yeginamgim.user.entity.UserEntity;
 import lombok.Builder;
 import lombok.Data;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Data
 @Builder
@@ -16,8 +16,8 @@ public class NotificationResponse {
     private String type;
     private String message;
     private Boolean read;
-    private LocalDateTime readAt;
-    private LocalDateTime createdAt;
+    private Instant readAt;
+    private Instant createdAt;
     private Long senderUserId;
     private String senderNickname;
     private String senderProfileImageUrl;

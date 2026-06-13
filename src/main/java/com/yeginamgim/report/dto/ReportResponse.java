@@ -6,7 +6,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 // 흔적 신고 등록 응답 DTO
 @Data
@@ -18,8 +18,8 @@ public class ReportResponse {
     private Long traceId;
     private Long userId;
     private String reportKind;
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
+    private Instant createdAt;
+    private Instant updatedAt;
 
     public static ReportResponse from(ReportEntity report) {
         return ReportResponse.builder()

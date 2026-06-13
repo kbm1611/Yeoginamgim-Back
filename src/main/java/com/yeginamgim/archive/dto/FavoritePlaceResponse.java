@@ -7,7 +7,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 // 즐겨찾기한 장소 응답 DTO
 @Data
@@ -26,8 +26,8 @@ public class FavoritePlaceResponse {
     private String kakaoMapUrl;
     private String groupName;
     private Long boardId;
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
+    private Instant createdAt;
+    private Instant updatedAt;
 
     public static FavoritePlaceResponse from(FavoritePlace favoritePlace, PlaceInfo placeInfo, Long boardId) {
         return FavoritePlaceResponse.builder()

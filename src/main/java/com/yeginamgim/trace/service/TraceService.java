@@ -42,7 +42,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -70,7 +70,7 @@ public class TraceService {
 
     // board_id 기준 흔적 목록 조회
     @Transactional(readOnly = true)
-    public TraceListResponse getTracesByBoardId(Long boardId, String sort, Integer limit, LocalDateTime before) {
+    public TraceListResponse getTracesByBoardId(Long boardId, String sort, Integer limit, Instant before) {
         return getTracesByBoardId(boardId, sort, limit, before, null);
     }
 
@@ -79,7 +79,7 @@ public class TraceService {
             Long boardId,
             String sort,
             Integer limit,
-            LocalDateTime before,
+            Instant before,
             String authorization
     ) {
         BoardEntity board = findBoard(boardId);
@@ -102,7 +102,7 @@ public class TraceService {
             Integer maxY,
             String sort,
             Integer limit,
-            LocalDateTime before
+            Instant before
     ) {
         return getTracesByBoardArea(boardId, minX, maxX, minY, maxY, sort, limit, before, null);
     }
@@ -116,7 +116,7 @@ public class TraceService {
             Integer maxY,
             String sort,
             Integer limit,
-            LocalDateTime before,
+            Instant before,
             String authorization
     ) {
         validateAreaRange(minX, maxX, minY, maxY);
@@ -131,7 +131,7 @@ public class TraceService {
         return toTraceListResponse(board, traces, viewerUserId);
     }
 
-    private List<Trace> findBoardTraces(Long boardId, TraceSortType sortType, LocalDateTime before, Pageable pageable) {
+    private List<Trace> findBoardTraces(Long boardId, TraceSortType sortType, Instant before, Pageable pageable) {
         return switch (sortType) {
             case OLDEST -> traceRepository.findBoardTracesOldest(boardId, TraceStatus.ACTIVE, before, pageable);
             case POPULAR -> traceRepository.findBoardTracesPopular(boardId, TraceStatus.ACTIVE, before, pageable);
@@ -147,7 +147,7 @@ public class TraceService {
             String authorization
     ) {
         Pageable pageable = toPageable(limit == null ? 5 : limit);
-        LocalDateTime startAt = PeriodRange.startAt(period);
+        Instant startAt = PeriodRange.startAt(period);
         String normalizedDistrict = normalizeDistrict(district);
         List<String> districtKakaoPlaceIds = findDistrictKakaoPlaceIds(normalizedDistrict);
         Long viewerUserId = findOptionalUserIdByToken(authorization);
@@ -185,7 +185,7 @@ public class TraceService {
             Integer minY,
             Integer maxY,
             TraceSortType sortType,
-            LocalDateTime before,
+            Instant before,
             Pageable pageable
     ) {
         return switch (sortType) {

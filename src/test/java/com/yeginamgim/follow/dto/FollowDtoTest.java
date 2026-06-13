@@ -3,7 +3,7 @@ package com.yeginamgim.follow.dto;
 import com.yeginamgim.user.entity.UserEntity;
 import org.junit.jupiter.api.Test;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -21,7 +21,7 @@ class FollowDtoTest {
 
     @Test
     void followUserResponseContainsPublicUserFields() {
-        LocalDateTime followedAt = LocalDateTime.of(2026, 6, 11, 10, 30);
+        Instant followedAt = Instant.parse("2026-06-11T10:30:00Z");
         UserEntity user = UserEntity.builder()
                 .userId(3L)
                 .email("target@example.com")

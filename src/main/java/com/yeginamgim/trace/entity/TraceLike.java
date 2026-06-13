@@ -7,7 +7,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 /**
  * 좋아요 테이블 Entity
@@ -38,7 +38,7 @@ public class TraceLike {
     private Trace trace;
 
     @Column(name = "created_at", nullable = false)
-    private LocalDateTime createdAt;
+    private Instant createdAt;
 
     /** 좋아요 생성 빌더 */
     @Builder
@@ -56,6 +56,6 @@ public class TraceLike {
 
     @PrePersist
     public void onCreate() {
-        this.createdAt = LocalDateTime.now();
+        this.createdAt = Instant.now();
     }
 }

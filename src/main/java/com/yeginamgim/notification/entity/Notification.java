@@ -22,7 +22,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Entity
 @Table(
@@ -70,10 +70,10 @@ public class Notification {
     private boolean read;
 
     @Column(name = "read_at")
-    private LocalDateTime readAt;
+    private Instant readAt;
 
     @Column(name = "created_at", nullable = false)
-    private LocalDateTime createdAt;
+    private Instant createdAt;
 
     public static Notification createFollowingTraceCreated(
             UserEntity receiver,
@@ -97,11 +97,11 @@ public class Notification {
         }
 
         this.read = true;
-        this.readAt = LocalDateTime.now();
+        this.readAt = Instant.now();
     }
 
     @PrePersist
     private void prePersist() {
-        this.createdAt = LocalDateTime.now();
+        this.createdAt = Instant.now();
     }
 }
