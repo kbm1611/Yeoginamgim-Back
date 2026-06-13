@@ -81,7 +81,7 @@ class NotificationDtoTest {
                 .notificationType(NotificationType.FOLLOWING_TRACE_CREATED)
                 .message("sender")
                 .read(false)
-                .createdAt(LocalDateTime.of(2026, 6, 11, 12, 0))
+                .createdAt(Instant.parse("2026-06-11T12:00:00Z"))
                 .build();
 
         NotificationResponse response = NotificationResponse.from(notification);
