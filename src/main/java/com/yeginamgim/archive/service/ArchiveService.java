@@ -123,8 +123,11 @@ public class ArchiveService {
 
         List<Trace> traces = traceRepository
                 .findByUser_UserIdAndTraceStatusOrderByCreatedAtDescTraceIdDesc(userId, TraceStatus.ACTIVE);
+        List<Trace> placeBoardTraces = traces.stream()
+                .filter(trace -> trace.getBoard() != null)
+                .toList();
 
-        Map<Long, TraceResponse> traceResponseMap = toTraceResponses(traces, userId).stream()
+        Map<Long, TraceResponse> traceResponseMap = toTraceResponses(placeBoardTraces, userId).stream()
                 .collect(Collectors.toMap(
                         TraceResponse::getTraceId,
                         Function.identity(),
@@ -132,7 +135,7 @@ public class ArchiveService {
                         LinkedHashMap::new
                 ));
 
-        Map<Long, List<Trace>> tracesByBoard = traces.stream()
+        Map<Long, List<Trace>> tracesByBoard = placeBoardTraces.stream()
                 .collect(Collectors.groupingBy(
                         trace -> trace.getBoard().getBoardId(),
                         LinkedHashMap::new,
