@@ -155,6 +155,30 @@ class TraceServiceTest {
     }
 
     @Test
+    void createTraceRejectsBlockedTextBeforeSaving() {
+        UserEntity user = user();
+        BoardEntity board = board();
+        TraceCreateRequest request = createRequest();
+        TraceElementCreateRequest text = new TraceElementCreateRequest();
+        text.setContentType(ContentType.POST_IT);
+        text.setTextContent("blocked text");
+        request.setElements(List.of(text));
+
+        when(boardRepository.findById(3L)).thenReturn(Optional.of(board));
+        when(jwtService.getClaim("Bearer token")).thenReturn("writer@example.com");
+        when(userRepository.findByEmail("writer@example.com")).thenReturn(Optional.of(user));
+        doThrow(new ResponseStatusException(HttpStatus.BAD_REQUEST, "부적절한 표현이 포함되어 저장할 수 없습니다."))
+                .when(profanityFilterService).validateTexts(List.of("blocked text"));
+
+        assertThatThrownBy(() -> traceService.createTrace(3L, "Bearer token", request))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("부적절한 표현이 포함되어 저장할 수 없습니다.");
+
+        verify(traceRepository, never()).save(any(Trace.class));
+        verifyNoInteractions(notificationService);
+    }
+
+    @Test
     void updateTraceRejectsBlockedTextBeforeApplyingChanges() {
         UserEntity user = user();
         Trace trace = Trace.builder()

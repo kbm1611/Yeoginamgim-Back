@@ -32,29 +32,29 @@ class ProfanityFilterServiceTest {
     void validateTextsSkipsClientWhenFilterIsDisabled() {
         properties.setEnabled(false);
 
-        assertThatCode(() -> profanityFilterService.validateTexts(List.of("검사 문장")))
+        assertThatCode(() -> profanityFilterService.validateTexts(List.of("text to check")))
                 .doesNotThrowAnyException();
         verifyNoInteractions(profanityFilterClient);
     }
 
     @Test
     void validateTextsAllowsCleanResponse() {
-        when(profanityFilterClient.check(List.of("좋은 기억")))
+        when(profanityFilterClient.check(List.of("clean text")))
                 .thenReturn(new ProfanityCheckResponse(
                         false,
                         List.of(new ProfanityCheckResponse.Result(false, 0.02))
                 ));
 
-        assertThatCode(() -> profanityFilterService.validateTexts(List.of("좋은 기억")))
+        assertThatCode(() -> profanityFilterService.validateTexts(List.of("clean text")))
                 .doesNotThrowAnyException();
     }
 
     @Test
     void validateTextsRejectsWhenBlockedIsTrue() {
-        when(profanityFilterClient.check(List.of("나쁜 말")))
+        when(profanityFilterClient.check(List.of("blocked text")))
                 .thenReturn(new ProfanityCheckResponse(true, List.of()));
 
-        assertThatThrownBy(() -> profanityFilterService.validateTexts(List.of("나쁜 말")))
+        assertThatThrownBy(() -> profanityFilterService.validateTexts(List.of("blocked text")))
                 .isInstanceOf(ResponseStatusException.class)
                 .extracting(exception -> ((ResponseStatusException) exception).getStatusCode())
                 .isEqualTo(HttpStatus.BAD_REQUEST);
@@ -62,35 +62,36 @@ class ProfanityFilterServiceTest {
 
     @Test
     void validateTextsRejectsWhenAnyResultIsProfanity() {
-        when(profanityFilterClient.check(List.of("나쁜 말")))
+        when(profanityFilterClient.check(List.of("blocked text")))
                 .thenReturn(new ProfanityCheckResponse(
                         false,
                         List.of(new ProfanityCheckResponse.Result(true, 0.91))
                 ));
 
-        assertThatThrownBy(() -> profanityFilterService.validateTexts(List.of("나쁜 말")))
+        assertThatThrownBy(() -> profanityFilterService.validateTexts(List.of("blocked text")))
                 .isInstanceOf(ResponseStatusException.class)
-                .hasMessageContaining("부적절한 표현이 포함되어 있습니다.");
+                .hasMessageContaining("부적절한 표현이 포함되어 저장할 수 없습니다.");
     }
 
     @Test
     void validateTextsRejectsOnClientFailureWhenFailOpenIsFalse() {
         properties.setFailOpen(false);
-        when(profanityFilterClient.check(List.of("검사 문장")))
+        when(profanityFilterClient.check(List.of("text to check")))
                 .thenThrow(new ProfanityFilterException("filter unavailable"));
 
-        assertThatThrownBy(() -> profanityFilterService.validateTexts(List.of("검사 문장")))
+        assertThatThrownBy(() -> profanityFilterService.validateTexts(List.of("text to check")))
                 .isInstanceOf(ResponseStatusException.class)
-                .hasMessageContaining("부적절한 표현을 확인할 수 없습니다.");
+                .extracting(exception -> ((ResponseStatusException) exception).getStatusCode())
+                .isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
     }
 
     @Test
     void validateTextsAllowsOnClientFailureWhenFailOpenIsTrue() {
         properties.setFailOpen(true);
-        when(profanityFilterClient.check(List.of("검사 문장")))
+        when(profanityFilterClient.check(List.of("text to check")))
                 .thenThrow(new ProfanityFilterException("filter unavailable"));
 
-        assertThatCode(() -> profanityFilterService.validateTexts(List.of("검사 문장")))
+        assertThatCode(() -> profanityFilterService.validateTexts(List.of("text to check")))
                 .doesNotThrowAnyException();
     }
 }
