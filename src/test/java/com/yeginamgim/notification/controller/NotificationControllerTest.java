@@ -5,7 +5,7 @@ import com.yeginamgim.notification.service.NotificationService;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.web.servlet.MockMvc;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 
 import static org.mockito.Mockito.mock;
@@ -67,7 +67,7 @@ class NotificationControllerTest {
                 .type("FOLLOWING_TRACE_CREATED")
                 .message("message")
                 .read(read)
-                .createdAt(LocalDateTime.of(2026, 6, 11, 15, 0))
+                .createdAt(Instant.parse("2026-06-11T15:00:00Z"))
                 .senderUserId(2L)
                 .senderNickname("sender")
                 .traceId(10L)

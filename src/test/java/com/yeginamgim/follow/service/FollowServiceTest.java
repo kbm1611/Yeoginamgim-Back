@@ -11,7 +11,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -67,7 +67,7 @@ class FollowServiceTest {
     void getFollowersReturnsUsersFollowingTarget() {
         UserEntity follower = user(3L, "follower@example.com", "follower");
         UserEntity target = user(2L, "target@example.com", "target");
-        LocalDateTime followedAt = LocalDateTime.of(2026, 6, 11, 14, 0);
+        Instant followedAt = Instant.parse("2026-06-11T14:00:00Z");
         Follow follow = Follow.builder()
                 .followId(10L)
                 .follower(follower)

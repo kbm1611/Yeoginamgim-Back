@@ -14,7 +14,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.web.servlet.MockMvc;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -121,7 +121,7 @@ class UserControllerTest {
         UserWithdrawRequestDto request = UserWithdrawRequestDto.builder()
                 .password("password123")
                 .build();
-        UserWithdrawResponseDto serviceResponse = UserWithdrawResponseDto.of(LocalDateTime.now());
+        UserWithdrawResponseDto serviceResponse = UserWithdrawResponseDto.of(Instant.now());
 
         when(jwtService.extractEmailFromBearerToken("Bearer token")).thenReturn("user@example.com");
         when(userService.withdraw("user@example.com", request)).thenReturn(serviceResponse);

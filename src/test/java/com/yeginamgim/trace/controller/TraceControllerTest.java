@@ -2,6 +2,7 @@ package com.yeginamgim.trace.controller;
 
 import com.yeginamgim.global.exception.FileUploadException;
 import com.yeginamgim.global.exception.GlobalExceptionHandler;
+import com.yeginamgim.trace.dto.RecentTraceResponse;
 import com.yeginamgim.trace.dto.TraceImageUploadResponse;
 import com.yeginamgim.trace.dto.TraceLikeResponse;
 import com.yeginamgim.trace.dto.TraceListResponse;
@@ -11,6 +12,7 @@ import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.time.Instant;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -35,13 +37,22 @@ class TraceControllerTest {
 
     @Test
     void recentTracesAcceptPeriodDistrictAndLimitParameters() throws Exception {
-        when(traceService.getRecentTraces("today", "Seongdong-gu", 5, null)).thenReturn(List.of());
+        when(traceService.getRecentTraces("today", "Seongdong-gu", 5, null)).thenReturn(List.of(
+                RecentTraceResponse.builder()
+                        .traceId(1L)
+                        .boardId(3L)
+                        .placeName("place")
+                        .previewText("trace")
+                        .createdAt(Instant.parse("2026-06-13T03:00:00Z"))
+                        .build()
+        ));
 
         mockMvc.perform(get("/api/traces/recent")
                         .param("period", "today")
                         .param("district", "Seongdong-gu")
                         .param("limit", "5"))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].createdAt").value("2026-06-13T03:00:00Z"));
 
         verify(traceService).getRecentTraces("today", "Seongdong-gu", 5, null);
     }

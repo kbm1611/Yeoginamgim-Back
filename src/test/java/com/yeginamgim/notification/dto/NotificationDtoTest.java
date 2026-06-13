@@ -7,7 +7,7 @@ import com.yeginamgim.trace.entity.Trace;
 import com.yeginamgim.user.entity.UserEntity;
 import org.junit.jupiter.api.Test;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -28,7 +28,7 @@ class NotificationDtoTest {
                 .traceX(1)
                 .traceY(2)
                 .build();
-        LocalDateTime createdAt = LocalDateTime.of(2026, 6, 11, 12, 0);
+        Instant createdAt = Instant.parse("2026-06-11T12:00:00Z");
         Notification notification = Notification.builder()
                 .notificationId(7L)
                 .sender(sender)
