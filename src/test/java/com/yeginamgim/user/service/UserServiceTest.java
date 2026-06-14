@@ -26,6 +26,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.mock.web.MockMultipartFile;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -37,6 +38,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.eq;
 
 class UserServiceTest {
 
@@ -91,6 +93,34 @@ class UserServiceTest {
         when(userRepository.findByEmail("user@example.com")).thenReturn(Optional.of(existingUser));
 
         assertThat(userService.getMyInfo("user@example.com").getUserId()).isEqualTo(7L);
+    }
+
+    @Test
+    void searchUsersReturnsEmptyListWhenKeywordIsBlank() {
+        assertThat(userService.searchUsers("user@example.com", "   ")).isEmpty();
+
+        verify(userRepository, never()).searchActiveUsers(any(), any(), any(), any());
+    }
+
+    @Test
+    void searchUsersFindsActiveUsersByNicknameOrNumericUserId() {
+        UserEntity friend = UserEntity.builder()
+                .userId(22L)
+                .email("friend@example.com")
+                .nickname("여행친구")
+                .profileImageUrl("/upload/profile/friend.png")
+                .build();
+        when(userRepository.searchActiveUsers(eq("user@example.com"), eq("22"), eq(22L), any()))
+                .thenReturn(List.of(friend));
+
+        assertThat(userService.searchUsers("user@example.com", "22"))
+                .hasSize(1)
+                .first()
+                .satisfies(response -> {
+                    assertThat(response.getUserId()).isEqualTo(22L);
+                    assertThat(response.getNickname()).isEqualTo("여행친구");
+                    assertThat(response.getProfileImageUrl()).isEqualTo("/upload/profile/friend.png");
+                });
     }
 
     @Test

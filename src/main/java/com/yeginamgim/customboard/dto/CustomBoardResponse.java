@@ -6,7 +6,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Data
 @NoArgsConstructor
@@ -19,8 +19,8 @@ public class CustomBoardResponse {
     private String boardTitle;
     private String boardDescription;
     private String boardImageUrl;
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
+    private Instant createdAt;
+    private Instant updatedAt;
     private int memberCount;
 
     public static CustomBoardResponse from(CustomBoard board, int memberCount) {

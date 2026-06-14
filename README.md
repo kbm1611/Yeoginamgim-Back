@@ -111,10 +111,27 @@
 - Kakao Local API
 - Kakao OAuth API
 - Google OAuth API
+- Python FastAPI profanity filter, called only by the Spring Backend
 
 ### Build Tool
 
 - Gradle Wrapper
+
+---
+
+## 욕설 필터 설정
+
+프론트엔드는 Python FastAPI 욕설 필터를 직접 호출하지 않습니다. 호출 흐름은 `Frontend -> Spring Backend -> FastAPI`로 유지합니다.
+
+기본 `application.properties`는 운영 안전을 위해 `PROFANITY_FILTER_ENABLED=true`, `PROFANITY_FILTER_FAIL_OPEN=false` 정책을 유지합니다. 이 상태에서 `PROFANITY_FILTER_BASE_URL`이 비어 있으면 텍스트 흔적 생성/수정이 `503`으로 실패할 수 있으므로, 운영에서는 Spring Backend 실행 환경에 필터 주소를 반드시 설정합니다.
+
+```bash
+PROFANITY_FILTER_ENABLED=true
+PROFANITY_FILTER_BASE_URL=http://127.0.0.1:8001
+PROFANITY_FILTER_FAIL_OPEN=false
+```
+
+로컬 `application-local.properties`는 FastAPI를 띄우지 않은 개발 중에도 흔적 작성이 막히지 않도록 `PROFANITY_FILTER_ENABLED=false`를 기본값으로 둡니다. 로컬에서 필터를 함께 테스트할 때만 `PROFANITY_FILTER_ENABLED=true`로 켜고, FastAPI를 `http://127.0.0.1:8001`에서 실행하세요.
 
 ---
 
@@ -427,4 +444,3 @@ data/
 ```
 
 `.gitignore`에 반드시 포함해야 합니다.
-

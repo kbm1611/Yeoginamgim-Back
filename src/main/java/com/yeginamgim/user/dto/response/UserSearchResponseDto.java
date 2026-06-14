@@ -1,26 +1,22 @@
-package com.yeginamgim.follow.dto;
+package com.yeginamgim.user.dto.response;
 
 import com.yeginamgim.user.entity.UserEntity;
 import lombok.Builder;
 import lombok.Data;
 
-import java.time.Instant;
-
 @Data
 @Builder
-public class FollowUserResponse {
+public class UserSearchResponseDto {
 
     private Long userId;
     private String nickname;
     private String profileImageUrl;
-    private Instant followedAt;
 
-    public static FollowUserResponse from(UserEntity user, Instant followedAt) {
-        return FollowUserResponse.builder()
+    public static UserSearchResponseDto from(UserEntity user) {
+        return UserSearchResponseDto.builder()
                 .userId(user.getUserId())
                 .nickname(user.getNickname())
                 .profileImageUrl(user.getProfileImageUrl())
-                .followedAt(followedAt)
                 .build();
     }
 }

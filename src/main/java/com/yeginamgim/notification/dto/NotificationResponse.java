@@ -6,7 +6,7 @@ import com.yeginamgim.user.entity.UserEntity;
 import lombok.Builder;
 import lombok.Data;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Data
 @Builder
@@ -16,8 +16,8 @@ public class NotificationResponse {
     private String type;
     private String message;
     private Boolean read;
-    private LocalDateTime readAt;
-    private LocalDateTime createdAt;
+    private Instant readAt;
+    private Instant createdAt;
     private Long senderUserId;
     private String senderNickname;
     private String senderProfileImageUrl;
@@ -38,8 +38,16 @@ public class NotificationResponse {
                 .senderUserId(sender == null ? null : sender.getUserId())
                 .senderNickname(sender == null ? null : sender.getNickname())
                 .senderProfileImageUrl(sender == null ? null : sender.getProfileImageUrl())
-                .boardId(trace == null || trace.getBoard() == null ? null : trace.getBoard().getBoardId())
+                .boardId(resolveBoardId(trace))
                 .traceId(trace == null ? null : trace.getTraceId())
                 .build();
+    }
+
+    private static Long resolveBoardId(Trace trace) {
+        if (trace == null) return null;
+        if (trace.getBoard() != null) return trace.getBoard().getBoardId();
+        if (trace.getCustomBoard() != null) return trace.getCustomBoard().getCustomBoardId();
+
+        return null;
     }
 }

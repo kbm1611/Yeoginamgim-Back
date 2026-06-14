@@ -5,7 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Data
 @Builder
@@ -13,9 +13,9 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 public class UserWithdrawResponseDto {
     private boolean withdrawn;
-    private LocalDateTime withdrawnAt;
+    private Instant withdrawnAt;
 
-    public static UserWithdrawResponseDto of(LocalDateTime withdrawnAt) {
+    public static UserWithdrawResponseDto of(Instant withdrawnAt) {
         return UserWithdrawResponseDto.builder()
                 .withdrawn(true)
                 .withdrawnAt(withdrawnAt)

@@ -4,6 +4,8 @@ import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestClientResponseException;
 
 import java.util.List;
 
@@ -25,17 +27,23 @@ class HttpProfanityFilterClient implements ProfanityFilterClient {
 
     @Override
     public ProfanityCheckResponse check(List<String> texts) {
-        if (!StringUtils.hasText(properties.getApiUrl())) {
-            throw new ProfanityFilterException("Profanity API URL is not configured.");
+        String checkUrl = properties.getCheckUrl();
+        if (!StringUtils.hasText(checkUrl)) {
+            throw new ProfanityFilterException("PROFANITY_FILTER_BASE_URL is not configured.");
         }
 
         try {
             return restClient.post()
-                    .uri(properties.getApiUrl())
+                    .uri(checkUrl)
                     .body(new ProfanityCheckRequest(texts))
                     .retrieve()
                     .body(ProfanityCheckResponse.class);
-        } catch (RuntimeException exception) {
+        } catch (RestClientResponseException exception) {
+            throw new ProfanityFilterException(
+                    "Profanity API returned HTTP status " + exception.getStatusCode().value() + ".",
+                    exception
+            );
+        } catch (RestClientException exception) {
             throw new ProfanityFilterException("Profanity API request failed.", exception);
         }
     }

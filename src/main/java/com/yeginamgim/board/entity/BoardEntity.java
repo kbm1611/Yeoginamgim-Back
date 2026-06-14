@@ -11,7 +11,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Entity
 @Data
@@ -31,12 +31,12 @@ public class BoardEntity {
     private String kakaoPlaceId;
 
     @Column(name = "created_at", nullable = false)
-    private LocalDateTime createdAt;
+    private Instant createdAt;
 
     public static BoardEntity create(String kakaoPlaceId) {
         return BoardEntity.builder()
                 .kakaoPlaceId(kakaoPlaceId)
-                .createdAt(LocalDateTime.now())
+                .createdAt(Instant.now())
                 .build();
     }
 }
