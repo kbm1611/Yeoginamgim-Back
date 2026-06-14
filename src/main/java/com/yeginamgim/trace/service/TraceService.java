@@ -414,7 +414,7 @@ public class TraceService {
             traceElementRepository.saveAll(elements);
         }
 
-        notificationService.createFollowingTraceNotifications(user, trace);
+        notificationService.createCustomBoardTraceNotifications(user, trace);
 
         return toCustomBoardTraceResponse(trace, elements, user.getUserId());
     }

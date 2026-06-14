@@ -1,6 +1,8 @@
 package com.yeginamgim.notification.service;
 
 import com.yeginamgim.auth.jwt.JWTService;
+import com.yeginamgim.customboard.entity.CustomBoardMember;
+import com.yeginamgim.customboard.repository.CustomBoardMemberRepository;
 import com.yeginamgim.follow.entity.Follow;
 import com.yeginamgim.follow.repository.FollowRepository;
 import com.yeginamgim.notification.dto.NotificationResponse;
@@ -23,6 +25,7 @@ public class NotificationService {
 
     private final NotificationRepository notificationRepository;
     private final FollowRepository followRepository;
+    private final CustomBoardMemberRepository customBoardMemberRepository;
     private final UserRepository userRepository;
     private final JWTService jwtService;
 
@@ -38,6 +41,31 @@ public class NotificationService {
                         sender,
                         trace,
                         sender.getNickname() + "님이 새 흔적을 남겼습니다."
+                ))
+                .toList();
+
+        if (!notifications.isEmpty()) {
+            notificationRepository.saveAll(notifications);
+        }
+    }
+
+    @Transactional
+    public void createCustomBoardTraceNotifications(UserEntity sender, Trace trace) {
+        if (trace.getCustomBoard() == null) {
+            return;
+        }
+
+        Long customBoardId = trace.getCustomBoard().getCustomBoardId();
+        List<Notification> notifications = customBoardMemberRepository
+                .findByCustomBoard_CustomBoardIdOrderByCreatedAtAsc(customBoardId)
+                .stream()
+                .map(CustomBoardMember::getUser)
+                .filter(receiver -> !receiver.getUserId().equals(sender.getUserId()))
+                .map(receiver -> Notification.createFollowingTraceCreated(
+                        receiver,
+                        sender,
+                        trace,
+                        sender.getNickname() + "님이 커스텀 보드에 새 흔적을 남겼습니다."
                 ))
                 .toList();
 
