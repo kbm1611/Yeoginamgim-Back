@@ -1,5 +1,6 @@
 package com.yeginamgim.notification.service;
 
+import com.yeginamgim.board.dto.PlaceInfo;
 import com.yeginamgim.auth.jwt.JWTService;
 import com.yeginamgim.customboard.entity.CustomBoardMember;
 import com.yeginamgim.customboard.repository.CustomBoardMemberRepository;
@@ -8,16 +9,22 @@ import com.yeginamgim.follow.repository.FollowRepository;
 import com.yeginamgim.notification.dto.NotificationResponse;
 import com.yeginamgim.notification.entity.Notification;
 import com.yeginamgim.notification.repository.NotificationRepository;
+import com.yeginamgim.place.repository.PlaceCsvStore;
 import com.yeginamgim.trace.entity.Trace;
+import com.yeginamgim.trace.entity.TraceElement;
+import com.yeginamgim.trace.repository.TraceElementRepository;
 import com.yeginamgim.user.entity.UserEntity;
 import com.yeginamgim.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -28,6 +35,8 @@ public class NotificationService {
     private final CustomBoardMemberRepository customBoardMemberRepository;
     private final UserRepository userRepository;
     private final JWTService jwtService;
+    private final TraceElementRepository traceElementRepository;
+    private final PlaceCsvStore placeCsvStore;
 
     @Transactional
     public void createFollowingTraceNotifications(UserEntity sender, Trace trace) {
@@ -78,10 +87,8 @@ public class NotificationService {
     public List<NotificationResponse> getNotifications(String authorization) {
         UserEntity receiver = findUserByToken(authorization);
 
-        return notificationRepository.findByReceiver_UserIdOrderByCreatedAtDesc(receiver.getUserId())
-                .stream()
-                .map(NotificationResponse::from)
-                .toList();
+        List<Notification> notifications = notificationRepository.findByReceiver_UserIdOrderByCreatedAtDesc(receiver.getUserId());
+        return toNotificationResponses(notifications);
     }
 
     @Transactional
@@ -93,7 +100,7 @@ public class NotificationService {
 
         notification.markAsRead();
 
-        return NotificationResponse.from(notification);
+        return toNotificationResponse(notification, findTraceElementMap(List.of(notification)));
     }
 
     @Transactional
@@ -104,9 +111,7 @@ public class NotificationService {
 
         notifications.forEach(Notification::markAsRead);
 
-        return notifications.stream()
-                .map(NotificationResponse::from)
-                .toList();
+        return toNotificationResponses(notifications);
     }
 
     @Transactional(readOnly = true)
@@ -127,5 +132,100 @@ public class NotificationService {
 
         return userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found."));
+    }
+
+    private List<NotificationResponse> toNotificationResponses(List<Notification> notifications) {
+        Map<Long, List<TraceElement>> traceElementMap = findTraceElementMap(notifications);
+
+        return notifications.stream()
+                .map(notification -> toNotificationResponse(notification, traceElementMap))
+                .toList();
+    }
+
+    private NotificationResponse toNotificationResponse(
+            Notification notification,
+            Map<Long, List<TraceElement>> traceElementMap
+    ) {
+        Trace trace = notification.getTrace();
+        String placeName = resolvePlaceName(trace);
+        String boardTitle = resolveBoardTitle(trace);
+        String tracePreview = resolveTracePreview(trace, traceElementMap);
+        String displayMessage = resolveDisplayMessage(notification, placeName, boardTitle);
+
+        return NotificationResponse.from(
+                notification,
+                displayMessage,
+                placeName,
+                boardTitle,
+                tracePreview
+        );
+    }
+
+    private Map<Long, List<TraceElement>> findTraceElementMap(List<Notification> notifications) {
+        List<Long> traceIds = notifications.stream()
+                .map(Notification::getTrace)
+                .filter(trace -> trace != null && trace.getTraceId() != null)
+                .map(Trace::getTraceId)
+                .distinct()
+                .toList();
+
+        if (traceIds.isEmpty()) {
+            return Map.of();
+        }
+
+        return traceElementRepository.findByTrace_TraceIdInOrderByElementIdAsc(traceIds)
+                .stream()
+                .collect(Collectors.groupingBy(element -> element.getTrace().getTraceId()));
+    }
+
+    private String resolveDisplayMessage(Notification notification, String placeName, String boardTitle) {
+        String senderNickname = notification.getSender() == null ? null : notification.getSender().getNickname();
+        if (!StringUtils.hasText(senderNickname)) {
+            return notification.getMessage();
+        }
+
+        if (StringUtils.hasText(placeName)) {
+            return senderNickname + "님이 " + placeName + "에 새 흔적을 남겼습니다.";
+        }
+
+        if (StringUtils.hasText(boardTitle)) {
+            return senderNickname + "님이 " + boardTitle + "에 새 흔적을 남겼습니다.";
+        }
+
+        return notification.getMessage();
+    }
+
+    private String resolvePlaceName(Trace trace) {
+        if (trace == null || trace.getBoard() == null) {
+            return null;
+        }
+
+        return placeCsvStore.findByKakaoPlaceId(trace.getBoard().getKakaoPlaceId())
+                .map(PlaceInfo::getPlaceName)
+                .filter(StringUtils::hasText)
+                .orElse(null);
+    }
+
+    private String resolveBoardTitle(Trace trace) {
+        if (trace == null || trace.getCustomBoard() == null) {
+            return null;
+        }
+
+        String boardTitle = trace.getCustomBoard().getBoardTitle();
+        return StringUtils.hasText(boardTitle) ? boardTitle : null;
+    }
+
+    private String resolveTracePreview(Trace trace, Map<Long, List<TraceElement>> traceElementMap) {
+        if (trace == null || trace.getTraceId() == null) {
+            return null;
+        }
+
+        List<TraceElement> elements = traceElementMap.getOrDefault(trace.getTraceId(), List.of());
+        return elements.stream()
+                .map(TraceElement::getTextContent)
+                .filter(StringUtils::hasText)
+                .map(String::trim)
+                .findFirst()
+                .orElse("새 흔적");
     }
 }

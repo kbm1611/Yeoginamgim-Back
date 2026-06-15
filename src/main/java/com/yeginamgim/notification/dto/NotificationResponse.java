@@ -23,6 +23,10 @@ public class NotificationResponse {
     private String senderProfileImageUrl;
     private Long boardId;
     private Long traceId;
+    private String displayMessage;
+    private String placeName;
+    private String boardTitle;
+    private String tracePreview;
 
     public static NotificationResponse from(Notification notification) {
         UserEntity sender = notification.getSender();
@@ -40,7 +44,23 @@ public class NotificationResponse {
                 .senderProfileImageUrl(sender == null ? null : sender.getProfileImageUrl())
                 .boardId(resolveBoardId(trace))
                 .traceId(trace == null ? null : trace.getTraceId())
+                .displayMessage(notification.getMessage())
                 .build();
+    }
+
+    public static NotificationResponse from(
+            Notification notification,
+            String displayMessage,
+            String placeName,
+            String boardTitle,
+            String tracePreview
+    ) {
+        NotificationResponse response = from(notification);
+        response.setDisplayMessage(displayMessage);
+        response.setPlaceName(placeName);
+        response.setBoardTitle(boardTitle);
+        response.setTracePreview(tracePreview);
+        return response;
     }
 
     private static Long resolveBoardId(Trace trace) {
