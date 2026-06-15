@@ -142,6 +142,8 @@ cd Yeoginamgim-Back
 .\gradlew.bat bootRun
 ```
 
+`bootRun`은 별도 설정이 없으면 `local` 프로필로 실행됩니다. 로컬 업로드 파일은 `Yeoginamgim-Back/uploads` 아래에 저장됩니다.
+
 테스트:
 
 ```powershell

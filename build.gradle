@@ -40,3 +40,8 @@ dependencies {
 test {
     useJUnitPlatform()
 }
+
+tasks.named('bootRun') {
+    systemProperty 'spring.profiles.active',
+            System.getProperty('spring.profiles.active', System.getenv('SPRING_PROFILES_ACTIVE') ?: 'local')
+}

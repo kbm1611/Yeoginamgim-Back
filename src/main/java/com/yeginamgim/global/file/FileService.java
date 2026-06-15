@@ -1,6 +1,7 @@
 package com.yeginamgim.global.file;
 
 import com.yeginamgim.global.exception.FileUploadException;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -13,6 +14,7 @@ import java.util.Set;
 import java.util.UUID;
 
 @Service
+@Slf4j
 public class FileService {
     private static final long MAX_FILE_SIZE = 10 * 1024 * 1024;
     private static final Set<String> ALLOWED_IMAGE_CONTENT_TYPES = Set.of(
@@ -59,6 +61,12 @@ public class FileService {
         } catch (FileUploadException exception) {
             throw exception;
         } catch (RuntimeException e) {
+            log.error("File upload failed. directoryName={}, fileName={}, contentType={}, size={}",
+                    directoryName,
+                    fileName,
+                    contentType,
+                    uploadFile.getSize(),
+                    e);
             throw FileUploadException.uploadFailed();
         }
     }
