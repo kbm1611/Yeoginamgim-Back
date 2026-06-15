@@ -17,6 +17,7 @@ public class InviteInfoResponse {
     private Long customBoardId;
     private String boardTitle;
     private String boardImageUrl;
+    private String ownerNickname;
     private String inviterNickname;
     private Instant expiredAt;
 
@@ -26,6 +27,7 @@ public class InviteInfoResponse {
                 .customBoardId(board.getCustomBoardId())
                 .boardTitle(board.getBoardTitle())
                 .boardImageUrl(board.getBoardImageUrl())
+                .ownerNickname(board.getUser().getNickname())
                 .inviterNickname(invite.getUser().getNickname())
                 .expiredAt(invite.getExpiredAt())
                 .build();
