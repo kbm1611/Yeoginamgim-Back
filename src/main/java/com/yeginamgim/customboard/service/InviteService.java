@@ -14,6 +14,7 @@ import com.yeginamgim.customboard.repository.CustomBoardRepository;
 import com.yeginamgim.user.entity.UserEntity;
 import com.yeginamgim.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,6 +37,9 @@ public class InviteService {
     private final JWTService jwtService;
     private final CustomBoardService customBoardService;
 
+    @Value("${app.frontend-base-url:http://localhost:5173}")
+    private String frontendBaseUrl;
+
     @Transactional
     public InviteCreateResponse createInviteLink(Long customBoardId, String authorization) {
         UserEntity user = findUserByToken(authorization);
@@ -49,7 +53,7 @@ public class InviteService {
                 CustomBoardInvite.create(board, user, inviteCode, expiredAt)
         );
 
-        return InviteCreateResponse.from(invite);
+        return InviteCreateResponse.from(invite, frontendBaseUrl);
     }
 
     @Transactional(readOnly = true)
