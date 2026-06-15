@@ -6,7 +6,7 @@ import com.yeginamgim.follow.service.FollowService;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.web.servlet.MockMvc;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 
 import static org.mockito.Mockito.mock;
@@ -60,7 +60,7 @@ class FollowControllerTest {
                         .userId(1L)
                         .nickname("follower")
                         .profileImageUrl("image")
-                        .followedAt(LocalDateTime.of(2026, 6, 11, 15, 0))
+                        .followedAt(Instant.parse("2026-06-11T15:00:00Z"))
                         .build()
         ));
 

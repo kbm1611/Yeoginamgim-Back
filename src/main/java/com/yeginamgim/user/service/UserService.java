@@ -13,12 +13,14 @@ import com.yeginamgim.user.dto.request.UserSignupRequestDto;
 import com.yeginamgim.user.dto.request.UserUpdateRequestDto;
 import com.yeginamgim.user.dto.request.UserWithdrawRequestDto;
 import com.yeginamgim.user.dto.response.UserInfoResponseDto;
+import com.yeginamgim.user.dto.response.UserSearchResponseDto;
 import com.yeginamgim.user.dto.response.UserSignupResponseDto;
 import com.yeginamgim.user.dto.response.UserWithdrawResponseDto;
 import com.yeginamgim.user.entity.UserEntity;
 import com.yeginamgim.user.enums.LoginProvider;
 import com.yeginamgim.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -27,6 +29,7 @@ import org.springframework.util.StringUtils;
 
 import java.time.DateTimeException;
 import java.time.YearMonth;
+import java.util.List;
 import java.util.regex.Pattern;
 
 @Service
@@ -92,6 +95,26 @@ public class UserService {
                 .orElseThrow(UserNotFoundException::new);
 
         return userEntity.toInfoDto();
+    }
+
+    @Transactional(readOnly = true)
+    public List<UserSearchResponseDto> searchUsers(String currentEmail, String keyword) {
+        if (!StringUtils.hasText(keyword)) {
+            return List.of();
+        }
+
+        String normalizedKeyword = keyword.trim();
+        Long userId = parseUserId(normalizedKeyword);
+
+        return userRepo.searchActiveUsers(
+                        currentEmail,
+                        normalizedKeyword,
+                        userId,
+                        PageRequest.of(0, 20)
+                )
+                .stream()
+                .map(UserSearchResponseDto::from)
+                .toList();
     }
 
     // 유저 정보 수정
@@ -193,6 +216,18 @@ public class UserService {
             return YearMonth.of(fullYear, month).isValidDay(day);
         } catch (DateTimeException exception) {
             return false;
+        }
+    }
+
+    private Long parseUserId(String keyword) {
+        if (!keyword.matches("^\\d+$")) {
+            return null;
+        }
+
+        try {
+            return Long.parseLong(keyword);
+        } catch (NumberFormatException exception) {
+            return null;
         }
     }
 }

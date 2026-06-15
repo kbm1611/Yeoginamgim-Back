@@ -1,12 +1,22 @@
 package com.yeginamgim.notification.service;
 
+import com.yeginamgim.board.dto.PlaceInfo;
+import com.yeginamgim.board.entity.BoardEntity;
 import com.yeginamgim.auth.jwt.JWTService;
+import com.yeginamgim.customboard.entity.CustomBoard;
+import com.yeginamgim.customboard.entity.CustomBoardMember;
+import com.yeginamgim.customboard.enums.BoardRole;
+import com.yeginamgim.customboard.repository.CustomBoardMemberRepository;
 import com.yeginamgim.follow.entity.Follow;
 import com.yeginamgim.follow.repository.FollowRepository;
 import com.yeginamgim.notification.dto.NotificationResponse;
 import com.yeginamgim.notification.entity.Notification;
 import com.yeginamgim.notification.repository.NotificationRepository;
+import com.yeginamgim.place.repository.PlaceCsvStore;
 import com.yeginamgim.trace.entity.Trace;
+import com.yeginamgim.trace.entity.TraceElement;
+import com.yeginamgim.trace.enums.ContentType;
+import com.yeginamgim.trace.repository.TraceElementRepository;
 import com.yeginamgim.user.entity.UserEntity;
 import com.yeginamgim.user.repository.UserRepository;
 import org.junit.jupiter.api.Test;
@@ -27,13 +37,19 @@ class NotificationServiceTest {
 
     private final NotificationRepository notificationRepository = mock(NotificationRepository.class);
     private final FollowRepository followRepository = mock(FollowRepository.class);
+    private final CustomBoardMemberRepository customBoardMemberRepository = mock(CustomBoardMemberRepository.class);
     private final UserRepository userRepository = mock(UserRepository.class);
     private final JWTService jwtService = mock(JWTService.class);
+    private final TraceElementRepository traceElementRepository = mock(TraceElementRepository.class);
+    private final PlaceCsvStore placeCsvStore = mock(PlaceCsvStore.class);
     private final NotificationService notificationService = new NotificationService(
             notificationRepository,
             followRepository,
+            customBoardMemberRepository,
             userRepository,
-            jwtService
+            jwtService,
+            traceElementRepository,
+            placeCsvStore
     );
 
     @Test
@@ -58,6 +74,52 @@ class NotificationServiceTest {
     }
 
     @Test
+    void createCustomBoardTraceNotificationsCreatesNotificationsOnlyForBoardMembers() {
+        UserEntity sender = user(2L, "sender@example.com", "sender");
+        UserEntity member = user(1L, "member@example.com", "member");
+        UserEntity outsideFollower = user(3L, "outside@example.com", "outside");
+        CustomBoard customBoard = CustomBoard.builder()
+                .customBoardId(33L)
+                .user(sender)
+                .boardTitle("trip")
+                .build();
+        Trace trace = Trace.builder()
+                .traceId(10L)
+                .customBoard(customBoard)
+                .user(sender)
+                .traceX(1)
+                .traceY(2)
+                .build();
+        CustomBoardMember senderMember = CustomBoardMember.builder()
+                .customBoard(customBoard)
+                .user(sender)
+                .role(BoardRole.OWNER)
+                .build();
+        CustomBoardMember boardMember = CustomBoardMember.builder()
+                .customBoard(customBoard)
+                .user(member)
+                .role(BoardRole.MEMBER)
+                .build();
+        Follow outsideFollow = Follow.builder()
+                .follower(outsideFollower)
+                .following(sender)
+                .build();
+
+        when(customBoardMemberRepository.findByCustomBoard_CustomBoardIdOrderByCreatedAtAsc(33L))
+                .thenReturn(List.of(senderMember, boardMember));
+        when(followRepository.findByFollowing_UserIdOrderByCreatedAtDesc(2L)).thenReturn(List.of(outsideFollow));
+
+        notificationService.createCustomBoardTraceNotifications(sender, trace);
+
+        verify(notificationRepository).saveAll(org.mockito.ArgumentMatchers.argThat(notifications -> {
+            List<Notification> notificationList = new java.util.ArrayList<>();
+            notifications.forEach(notificationList::add);
+            return notificationList.size() == 1
+                    && notificationList.get(0).getReceiver().getUserId().equals(1L);
+        }));
+    }
+
+    @Test
     void getNotificationsReturnsCurrentUsersNotifications() {
         UserEntity receiver = user(1L, "receiver@example.com", "receiver");
         UserEntity sender = user(2L, "sender@example.com", "sender");
@@ -78,6 +140,99 @@ class NotificationServiceTest {
 
         assertThat(responses).hasSize(1);
         assertThat(responses.get(0).getNotificationId()).isEqualTo(7L);
+    }
+
+    @Test
+    void getNotificationsAddsReadablePlaceMessageAndTracePreview() {
+        UserEntity receiver = user(1L, "receiver@example.com", "receiver");
+        UserEntity sender = user(2L, "sender@example.com", "은하수");
+        BoardEntity board = BoardEntity.builder()
+                .boardId(28L)
+                .kakaoPlaceId("place-1")
+                .build();
+        Trace trace = Trace.builder()
+                .traceId(64L)
+                .board(board)
+                .user(sender)
+                .traceX(1)
+                .traceY(2)
+                .build();
+        Notification notification = Notification.builder()
+                .notificationId(7L)
+                .receiver(receiver)
+                .sender(sender)
+                .trace(trace)
+                .message("은하수님이 새 흔적을 남겼습니다.")
+                .notificationType(com.yeginamgim.notification.enums.NotificationType.FOLLOWING_TRACE_CREATED)
+                .read(false)
+                .build();
+        TraceElement textElement = TraceElement.builder()
+                .trace(trace)
+                .contentType(ContentType.POST_IT)
+                .textContent("오늘 분위기가 좋았어요")
+                .build();
+
+        when(jwtService.getClaim("Bearer token")).thenReturn("receiver@example.com");
+        when(userRepository.findByEmail("receiver@example.com")).thenReturn(Optional.of(receiver));
+        when(notificationRepository.findByReceiver_UserIdOrderByCreatedAtDesc(1L)).thenReturn(List.of(notification));
+        when(traceElementRepository.findByTrace_TraceIdInOrderByElementIdAsc(List.of(64L)))
+                .thenReturn(List.of(textElement));
+        when(placeCsvStore.findByKakaoPlaceId("place-1")).thenReturn(Optional.of(
+                PlaceInfo.builder()
+                        .kakaoPlaceId("place-1")
+                        .placeName("스타벅스 강남점")
+                        .build()
+        ));
+
+        List<NotificationResponse> responses = notificationService.getNotifications("Bearer token");
+
+        assertThat(responses).hasSize(1);
+        assertThat(responses.get(0).getDisplayMessage())
+                .isEqualTo("은하수님이 스타벅스 강남점에 새 흔적을 남겼습니다.");
+        assertThat(responses.get(0).getPlaceName()).isEqualTo("스타벅스 강남점");
+        assertThat(responses.get(0).getBoardTitle()).isNull();
+        assertThat(responses.get(0).getTracePreview()).isEqualTo("오늘 분위기가 좋았어요");
+    }
+
+    @Test
+    void getNotificationsAddsReadableCustomBoardMessage() {
+        UserEntity receiver = user(1L, "receiver@example.com", "receiver");
+        UserEntity sender = user(2L, "sender@example.com", "푸른밤");
+        CustomBoard customBoard = CustomBoard.builder()
+                .customBoardId(33L)
+                .user(sender)
+                .boardTitle("여행 보드")
+                .build();
+        Trace trace = Trace.builder()
+                .traceId(64L)
+                .customBoard(customBoard)
+                .user(sender)
+                .traceX(1)
+                .traceY(2)
+                .build();
+        Notification notification = Notification.builder()
+                .notificationId(7L)
+                .receiver(receiver)
+                .sender(sender)
+                .trace(trace)
+                .message("푸른밤님이 커스텀 보드에 새 흔적을 남겼습니다.")
+                .notificationType(com.yeginamgim.notification.enums.NotificationType.FOLLOWING_TRACE_CREATED)
+                .read(false)
+                .build();
+
+        when(jwtService.getClaim("Bearer token")).thenReturn("receiver@example.com");
+        when(userRepository.findByEmail("receiver@example.com")).thenReturn(Optional.of(receiver));
+        when(notificationRepository.findByReceiver_UserIdOrderByCreatedAtDesc(1L)).thenReturn(List.of(notification));
+        when(traceElementRepository.findByTrace_TraceIdInOrderByElementIdAsc(List.of(64L))).thenReturn(List.of());
+
+        List<NotificationResponse> responses = notificationService.getNotifications("Bearer token");
+
+        assertThat(responses).hasSize(1);
+        assertThat(responses.get(0).getDisplayMessage())
+                .isEqualTo("푸른밤님이 여행 보드에 새 흔적을 남겼습니다.");
+        assertThat(responses.get(0).getPlaceName()).isNull();
+        assertThat(responses.get(0).getBoardTitle()).isEqualTo("여행 보드");
+        assertThat(responses.get(0).getTracePreview()).isEqualTo("새 흔적");
     }
 
     @Test

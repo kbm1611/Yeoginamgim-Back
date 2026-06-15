@@ -6,7 +6,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Data
 @NoArgsConstructor
@@ -14,7 +14,7 @@ import java.time.LocalDateTime;
 @Builder
 public class InviteCreateResponse {
     private String inviteCode;
-    private LocalDateTime expiredAt;
+    private Instant expiredAt;
 
     public static InviteCreateResponse from(CustomBoardInvite invite) {
         return InviteCreateResponse.builder()

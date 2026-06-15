@@ -19,7 +19,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Entity
 @Table(
@@ -52,7 +52,7 @@ public class Follow {
     private UserEntity following;
 
     @Column(name = "created_at", nullable = false)
-    private LocalDateTime createdAt;
+    private Instant createdAt;
 
     public static Follow create(UserEntity follower, UserEntity following) {
         return Follow.builder()
@@ -63,6 +63,6 @@ public class Follow {
 
     @PrePersist
     private void prePersist() {
-        this.createdAt = LocalDateTime.now();
+        this.createdAt = Instant.now();
     }
 }

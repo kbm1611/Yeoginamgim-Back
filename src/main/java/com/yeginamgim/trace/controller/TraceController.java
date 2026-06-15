@@ -24,7 +24,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 
 // [3] 공간 보드 위 흔적 기능
@@ -51,7 +51,7 @@ public class TraceController {
             @PathVariable Long boardId,
             @RequestParam(defaultValue = "latest") String sort,
             @RequestParam(required = false) Integer limit,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime before,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant before,
             @RequestHeader(value = "Authorization", required = false) String authorization
     ) {
         return traceService.getTracesByBoardId(boardId, sort, limit, before, authorization);
@@ -68,7 +68,7 @@ public class TraceController {
             @RequestParam Integer maxY,
             @RequestParam(defaultValue = "latest") String sort,
             @RequestParam(required = false) Integer limit,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime before,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant before,
             @RequestHeader(value = "Authorization", required = false) String authorization
     ) {
         return traceService.getTracesByBoardArea(boardId, minX, maxX, minY, maxY, sort, limit, before, authorization);

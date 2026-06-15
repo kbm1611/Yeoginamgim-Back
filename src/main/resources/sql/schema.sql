@@ -22,6 +22,47 @@ CREATE TABLE IF NOT EXISTS board (
     UNIQUE KEY uk_board_kakao_place_id (kakao_place_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS custom_board (
+    custom_board_id BIGINT NOT NULL AUTO_INCREMENT,
+    user_id BIGINT NOT NULL,
+    board_title VARCHAR(100) NOT NULL,
+    board_description VARCHAR(500) NULL,
+    board_image_url VARCHAR(500) NULL,
+    created_at DATETIME(6) NULL,
+    updated_at DATETIME(6) NULL,
+    PRIMARY KEY (custom_board_id),
+    KEY idx_custom_board_user_id (user_id),
+    CONSTRAINT fk_custom_board_user FOREIGN KEY (user_id) REFERENCES users (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS custom_board_member (
+    member_id BIGINT NOT NULL AUTO_INCREMENT,
+    custom_board_id BIGINT NOT NULL,
+    user_id BIGINT NOT NULL,
+    role VARCHAR(20) NOT NULL,
+    created_at DATETIME(6) NOT NULL,
+    PRIMARY KEY (member_id),
+    UNIQUE KEY uk_custom_board_member_board_user (custom_board_id, user_id),
+    KEY idx_custom_board_member_user_id (user_id),
+    CONSTRAINT fk_custom_board_member_board FOREIGN KEY (custom_board_id) REFERENCES custom_board (custom_board_id),
+    CONSTRAINT fk_custom_board_member_user FOREIGN KEY (user_id) REFERENCES users (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS custom_board_invite (
+    invite_id BIGINT NOT NULL AUTO_INCREMENT,
+    custom_board_id BIGINT NOT NULL,
+    invite_code VARCHAR(100) NOT NULL,
+    user_id BIGINT NOT NULL,
+    expired_at DATETIME(6) NOT NULL,
+    created_at DATETIME(6) NOT NULL,
+    PRIMARY KEY (invite_id),
+    UNIQUE KEY uk_custom_board_invite_code (invite_code),
+    KEY idx_custom_board_invite_board_id (custom_board_id),
+    KEY idx_custom_board_invite_user_id (user_id),
+    CONSTRAINT fk_custom_board_invite_board FOREIGN KEY (custom_board_id) REFERENCES custom_board (custom_board_id),
+    CONSTRAINT fk_custom_board_invite_user FOREIGN KEY (user_id) REFERENCES users (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS favorite_place (
     favorite_place_id BIGINT NOT NULL AUTO_INCREMENT,
     user_id BIGINT NOT NULL,
@@ -38,7 +79,8 @@ CREATE TABLE IF NOT EXISTS favorite_place (
 CREATE TABLE IF NOT EXISTS trace (
     trace_id BIGINT NOT NULL AUTO_INCREMENT,
     user_id BIGINT NOT NULL,
-    board_id BIGINT NOT NULL,
+    board_id BIGINT NULL,
+    custom_board_id BIGINT NULL,
     trace_x INT NOT NULL,
     trace_y INT NOT NULL,
     trace_status VARCHAR(255) NOT NULL DEFAULT 'ACTIVE',
@@ -47,10 +89,14 @@ CREATE TABLE IF NOT EXISTS trace (
     PRIMARY KEY (trace_id),
     KEY idx_trace_user_id (user_id),
     KEY idx_trace_board_id (board_id),
+    KEY idx_trace_custom_board_id (custom_board_id),
     KEY idx_trace_status_created_at (trace_status, created_at),
     CONSTRAINT fk_trace_user FOREIGN KEY (user_id) REFERENCES users (user_id),
-    CONSTRAINT fk_trace_board FOREIGN KEY (board_id) REFERENCES board (board_id)
+    CONSTRAINT fk_trace_board FOREIGN KEY (board_id) REFERENCES board (board_id),
+    CONSTRAINT fk_trace_custom_board FOREIGN KEY (custom_board_id) REFERENCES custom_board (custom_board_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+ALTER TABLE trace MODIFY COLUMN board_id BIGINT NULL;
 
 CREATE TABLE IF NOT EXISTS trace_element (
     element_id BIGINT NOT NULL AUTO_INCREMENT,
