@@ -3,16 +3,9 @@ package com.yeginamgim.place.repository;
 import com.yeginamgim.board.dto.PlaceInfo;
 import com.yeginamgim.place.util.GeoUtils;
 import com.yeginamgim.place.util.PlaceCategory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -23,15 +16,13 @@ import java.util.Optional;
 public class PlaceCsvStore {
 
     private static final String HEADER = "kakao_place_id,place_name,latitude,longitude,phone,address,kakao_map_url,group_name";
-    private final Path cacheFilePath;
+    private final PlaceCacheStorage storage;
 
-    // 설정된 CSV 캐시 파일 경로를 초기화하고 파일이 없으면 생성한다.
-    public PlaceCsvStore(@Value("${place.cache-file-path:../data/places-cache.csv}") String cacheFilePath) {
-        this.cacheFilePath = Path.of(cacheFilePath).toAbsolutePath().normalize();
-        ensureCacheFile();
+    public PlaceCsvStore(PlaceCacheStorage storage) {
+        this.storage = storage;
+        this.storage.ensureExists(HEADER + System.lineSeparator());
     }
 
-    // kakaoPlaceId와 일치하는 장소를 CSV 캐시에서 찾는다.
     public Optional<PlaceInfo> findByKakaoPlaceId(String kakaoPlaceId) {
         if (!StringUtils.hasText(kakaoPlaceId)) {
             return Optional.empty();
@@ -39,10 +30,9 @@ public class PlaceCsvStore {
 
         return findAll().stream()
                 .filter(place -> kakaoPlaceId.equals(place.getKakaoPlaceId()))
-                .findFirst(); // 첫번째로 찾은 값만 반환
+                .findFirst();
     }
 
-    // 지정 좌표 주변에서 카테고리와 반경 조건에 맞는 장소를 거리순으로 찾는다.
     public List<PlaceInfo> findNearby(Double latitude, Double longitude, String category, int radius) {
         if (latitude == null || longitude == null || !StringUtils.hasText(category)) {
             return List.of();
@@ -55,7 +45,6 @@ public class PlaceCsvStore {
                 .toList();
     }
 
-    // 같은 장소가 없으면 추가하고, 이미 있으면 누락된 정보를 병합해 저장한다.
     public synchronized void saveIfAbsent(PlaceInfo placeInfo) {
         if (placeInfo == null || !hasMinimumIdentity(placeInfo)) {
             return;
@@ -76,26 +65,17 @@ public class PlaceCsvStore {
         writeAll(places);
     }
 
-    // CSV 캐시에 저장된 모든 장소를 읽어온다.
     public List<PlaceInfo> findAll() {
-        ensureCacheFile();
-
-        try (BufferedReader reader = Files.newBufferedReader(cacheFilePath, StandardCharsets.UTF_8)) {
-            return reader.lines()
-                    .filter(line -> StringUtils.hasText(line) && !line.startsWith("#"))
-                    .skip(1)
-                    .map(this::toPlaceInfo)
-                    .flatMap(Optional::stream)
-                    .toList();
-        } catch (IOException exception) {
-            throw new IllegalStateException("Unable to read place cache CSV.", exception);
-        }
+        return storage.read()
+                .lines()
+                .filter(line -> StringUtils.hasText(line) && !line.startsWith("#"))
+                .skip(1)
+                .map(this::toPlaceInfo)
+                .flatMap(Optional::stream)
+                .toList();
     }
 
-    // 전체 장소 목록을 CSV 파일에 원자적으로 다시 쓴다.
     private void writeAll(List<PlaceInfo> places) {
-        ensureCacheFile();
-        Path tempPath = cacheFilePath.resolveSibling(cacheFilePath.getFileName() + ".tmp");
         List<String> lines = new ArrayList<>();
         lines.add(HEADER);
         places.stream()
@@ -103,30 +83,9 @@ public class PlaceCsvStore {
                 .map(this::toCsvLine)
                 .forEach(lines::add);
 
-        try {
-            Files.write(tempPath, lines, StandardCharsets.UTF_8);
-            Files.move(tempPath, cacheFilePath, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
-        } catch (IOException exception) {
-            throw new IllegalStateException("Unable to write place cache CSV.", exception);
-        }
+        storage.write(String.join(System.lineSeparator(), lines) + System.lineSeparator());
     }
 
-    // CSV 캐시 파일과 상위 디렉터리가 존재하도록 보장한다.
-    private void ensureCacheFile() {
-        try {
-            Path parent = cacheFilePath.getParent();
-            if (parent != null) {
-                Files.createDirectories(parent);
-            }
-            if (!Files.exists(cacheFilePath)) {
-                Files.writeString(cacheFilePath, HEADER + System.lineSeparator(), StandardCharsets.UTF_8);
-            }
-        } catch (IOException exception) {
-            throw new IllegalStateException("Unable to initialize place cache CSV.", exception);
-        }
-    }
-
-    // CSV 한 줄을 PlaceInfo 객체로 변환한다.
     private Optional<PlaceInfo> toPlaceInfo(String line) {
         List<String> columns = parseCsvLine(line);
         if (columns.size() < 8 || HEADER.equals(line)) {
@@ -145,7 +104,6 @@ public class PlaceCsvStore {
                 .build());
     }
 
-    // 쉼표와 따옴표 이스케이프를 고려해 CSV 한 줄을 컬럼 목록으로 분리한다.
     private List<String> parseCsvLine(String line) {
         List<String> columns = new ArrayList<>();
         StringBuilder current = new StringBuilder();
@@ -172,7 +130,6 @@ public class PlaceCsvStore {
         return columns;
     }
 
-    // PlaceInfo 객체를 CSV 한 줄 문자열로 변환한다.
     private String toCsvLine(PlaceInfo placeInfo) {
         return String.join(",",
                 escape(placeInfo.getKakaoPlaceId()),
@@ -186,7 +143,6 @@ public class PlaceCsvStore {
         );
     }
 
-    // CSV 특수문자가 포함된 값을 따옴표로 감싸고 내부 따옴표를 이스케이프한다.
     private String escape(String value) {
         String safeValue = value == null ? "" : value;
         if (safeValue.contains(",") || safeValue.contains("\"") || safeValue.contains("\n")) {
@@ -195,24 +151,20 @@ public class PlaceCsvStore {
         return safeValue;
     }
 
-    // Double 값을 CSV에 저장 가능한 문자열로 변환한다.
     private String toString(Double value) {
         return value == null ? "" : value.toString();
     }
 
-    // 장소가 기준 좌표로부터 지정 반경 안에 있는지 확인한다.
     private boolean isWithinRadius(Double latitude, Double longitude, PlaceInfo place, int radius) {
         return place.getLatitude() != null
                 && place.getLongitude() != null
                 && GeoUtils.distanceInMeters(latitude, longitude, place.getLatitude(), place.getLongitude()) <= radius;
     }
 
-    // 기준 좌표와 장소 사이의 거리를 계산한다.
     private double distanceFrom(Double latitude, Double longitude, PlaceInfo place) {
         return GeoUtils.distanceInMeters(latitude, longitude, place.getLatitude(), place.getLongitude());
     }
 
-    // 저장 가능한 최소 식별 정보가 있는지 확인한다.
     private boolean hasMinimumIdentity(PlaceInfo placeInfo) {
         return StringUtils.hasText(placeInfo.getKakaoPlaceId())
                 || (StringUtils.hasText(placeInfo.getPlaceName())
@@ -220,7 +172,6 @@ public class PlaceCsvStore {
                 && placeInfo.getLongitude() != null);
     }
 
-    // kakaoPlaceId 또는 이름/좌표/주소 조합으로 같은 장소인지 판단한다.
     private boolean isSamePlace(PlaceInfo left, PlaceInfo right) {
         if (StringUtils.hasText(left.getKakaoPlaceId())
                 && StringUtils.hasText(right.getKakaoPlaceId())
@@ -237,12 +188,10 @@ public class PlaceCsvStore {
                 && Objects.equals(normalize(left.getAddress()), normalize(right.getAddress()));
     }
 
-    // 좌표 오차를 고려해 두 좌표값이 같은지 판단한다.
     private boolean sameCoordinate(Double left, Double right) {
         return left != null && right != null && Math.abs(left - right) < 0.00001;
     }
 
-    // 기존 장소 정보와 새 장소 정보를 병합한다.
     private PlaceInfo merge(PlaceInfo existing, PlaceInfo incoming) {
         return PlaceInfo.builder()
                 .kakaoPlaceId(firstText(incoming.getKakaoPlaceId(), existing.getKakaoPlaceId()))
@@ -256,27 +205,22 @@ public class PlaceCsvStore {
                 .build();
     }
 
-    // 우선값이 비어 있지 않으면 우선값을, 아니면 대체값을 반환한다.
     private String firstText(String preferred, String fallback) {
         return StringUtils.hasText(preferred) ? preferred : fallback;
     }
 
-    // null 문자열을 빈 문자열로 보정한다.
     private String defaultString(String value) {
         return value == null ? "" : value;
     }
 
-    // 장소의 그룹명이 요청 카테고리 또는 카테고리 별칭과 매칭되는지 확인한다.
     private boolean matchesCategory(PlaceInfo place, String category) {
         return PlaceCategory.matchesSelectedCategory(place.getPlaceName(), place.getGroupName(), category);
     }
 
-    // 비교를 위해 문자열을 소문자와 trim 기준으로 정규화한다.
     private String normalize(String value) {
         return StringUtils.hasText(value) ? value.trim().toLowerCase() : "";
     }
 
-    // CSV 문자열을 Double로 변환하고 실패하면 null을 반환한다.
     private Double parseDouble(String value) {
         if (!StringUtils.hasText(value)) {
             return null;
@@ -288,5 +232,4 @@ public class PlaceCsvStore {
             return null;
         }
     }
-
 }
