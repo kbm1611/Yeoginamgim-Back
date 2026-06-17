@@ -128,3 +128,5 @@ Python FastAPI 서버는 Docker 이미지로 빌드된 후 AWS ECR에 저장되�
 - [프론트엔드 깃허브 링크](https://github.com/kbm1611/Yeoginamgim-Front)
 - [파이썬 깃허브 링크](https://github.com/kbm1611/Yeoginamgim-Python)
 - [API 문서 / 참고 자료](https://docs.google.com/spreadsheets/d/1JPG2olfW4FKcZR7B_yKi8_nwn-M5Zn7T_9ogwQE2qAI/edit?gid=678243450#gid=678243450)
+- [PPT 링크](https://canva.link/p8bahrbzjqnzgro)
+- [피그마 링크](https://www.figma.com/design/PyZlUiPCcvxLt8mgNn91FM/%EC%A0%9C%EB%AA%A9-%EC%97%86%EC%9D%8C?t=HEMUU0J3LAuI08KZ-1)
