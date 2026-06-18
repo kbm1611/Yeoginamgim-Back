@@ -3,6 +3,7 @@ package com.yeginamgim.trace.service;
 import com.yeginamgim.auth.jwt.JWTService;
 import com.yeginamgim.board.entity.BoardEntity;
 import com.yeginamgim.board.repository.BoardRepository;
+import com.yeginamgim.customboard.entity.CustomBoard;
 import com.yeginamgim.customboard.repository.CustomBoardMemberRepository;
 import com.yeginamgim.customboard.repository.CustomBoardRepository;
 import com.yeginamgim.global.file.FileService;
@@ -26,6 +27,7 @@ import org.mockito.ArgumentCaptor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -176,6 +178,75 @@ class TraceServiceTest {
 
         verify(traceRepository, never()).save(any(Trace.class));
         verifyNoInteractions(notificationService);
+    }
+
+    @Test
+    void createTraceRejectsActivityRestrictedUser() {
+        UserEntity user = user();
+        user.restrictActivityUntil(Instant.now().plusSeconds(3600), "REPORT_THRESHOLD");
+        TraceCreateRequest request = createRequest();
+
+        when(boardRepository.findById(3L)).thenReturn(Optional.of(board()));
+        when(jwtService.getClaim("Bearer token")).thenReturn("writer@example.com");
+        when(userRepository.findByEmail("writer@example.com")).thenReturn(Optional.of(user));
+
+        assertThatThrownBy(() -> traceService.createTrace(3L, "Bearer token", request))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("활동이 제한된 사용자입니다.");
+
+        verify(traceRepository, never()).save(any(Trace.class));
+    }
+
+    @Test
+    void addLikeRejectsActivityRestrictedUser() {
+        UserEntity user = user();
+        user.restrictActivityUntil(Instant.now().plusSeconds(3600), "REPORT_THRESHOLD");
+        Trace trace = Trace.builder()
+                .traceId(10L)
+                .user(UserEntity.builder().userId(2L).email("other@example.com").nickname("other").build())
+                .board(board())
+                .traceX(1)
+                .traceY(2)
+                .traceStatus(TraceStatus.ACTIVE)
+                .build();
+
+        when(traceRepository.findById(10L)).thenReturn(Optional.of(trace));
+        when(jwtService.getClaim("Bearer token")).thenReturn("writer@example.com");
+        when(userRepository.findByEmail("writer@example.com")).thenReturn(Optional.of(user));
+
+        assertThatThrownBy(() -> traceService.addLike(10L, "Bearer token"))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("활동이 제한된 사용자입니다.");
+
+        verify(traceLikeRepository, never()).save(any());
+    }
+
+    @Test
+    void createTraceForCustomBoardAllowsActivityRestrictedUser() {
+        UserEntity user = user();
+        user.restrictActivityUntil(Instant.now().plusSeconds(3600), "REPORT_THRESHOLD");
+        CustomBoard customBoard = CustomBoard.builder()
+                .customBoardId(7L)
+                .user(user)
+                .boardTitle("친구 보드")
+                .build();
+        TraceCreateRequest request = createRequest();
+
+        when(jwtService.getClaim("Bearer token")).thenReturn("writer@example.com");
+        when(userRepository.findByEmail("writer@example.com")).thenReturn(Optional.of(user));
+        when(customBoardRepository.findById(7L)).thenReturn(Optional.of(customBoard));
+        when(customBoardMemberRepository.existsByCustomBoard_CustomBoardIdAndUser_UserId(7L, 1L)).thenReturn(true);
+        when(traceRepository.save(any(Trace.class))).thenAnswer(invocation -> {
+            Trace trace = invocation.getArgument(0);
+            trace.setTraceId(10L);
+            return trace;
+        });
+        when(traceLikeRepository.countByTrace_TraceId(10L)).thenReturn(0L);
+
+        traceService.createTraceForCustomBoard(7L, "Bearer token", request);
+
+        verify(traceRepository).save(any(Trace.class));
+        verify(notificationService).createCustomBoardTraceNotifications(eq(user), any(Trace.class));
     }
 
     @Test

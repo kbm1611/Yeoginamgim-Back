@@ -1,6 +1,7 @@
 package com.yeginamgim.report.service;
 
 import com.yeginamgim.auth.jwt.JWTService;
+import com.yeginamgim.auth.service.MailService;
 import com.yeginamgim.notification.service.NotificationService;
 import com.yeginamgim.report.dto.ReportCreateRequest;
 import com.yeginamgim.report.dto.ReportResponse;
@@ -17,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 
@@ -25,12 +27,17 @@ import java.util.List;
 public class ReportService {
 
     private static final long REPORT_HIDE_THRESHOLD = 10L;
+    private static final long ACTIVITY_RESTRICTION_TRACE_THRESHOLD = 3L;
+    private static final Duration ACTIVITY_RESTRICTION_LOOKBACK = Duration.ofDays(7);
+    private static final Duration ACTIVITY_RESTRICTION_DURATION = Duration.ofDays(7);
+    private static final String ACTIVITY_RESTRICTION_REASON = "REPORT_THRESHOLD";
 
     private final ReportRepository reportRepository;
     private final TraceRepository traceRepository;
     private final UserRepository userRepository;
     private final JWTService jwtService;
     private final NotificationService notificationService;
+    private final MailService mailService;
 
     // trace_id 기준 흔적 신고 등록
     @Transactional
@@ -39,6 +46,7 @@ public class ReportService {
 
         Trace trace = findTrace(traceId);
         UserEntity user = findUserByToken(authorization);
+        validateUserCanAct(user);
         validateReporterCanReport(trace, user);
 
         if (reportRepository.existsByUser_UserIdAndTrace_TraceId(user.getUserId(), trace.getTraceId())) {
@@ -82,6 +90,37 @@ public class ReportService {
 
         List<ReportEntity> reports = reportRepository.findByTrace_TraceId(trace.getTraceId());
         notificationService.createTraceHiddenByReportNotifications(trace, reporter, reports);
+        restrictAuthorActivityIfNeeded(trace.getUser());
+    }
+
+    private void restrictAuthorActivityIfNeeded(UserEntity author) {
+        if (author == null || author.getUserId() == null) {
+            return;
+        }
+
+        Instant now = Instant.now();
+        if (author.isActivityRestricted(now)) {
+            return;
+        }
+
+        Instant lookbackStart = now.minus(ACTIVITY_RESTRICTION_LOOKBACK);
+        long hiddenTraceCount = traceRepository.countByUser_UserIdAndReportHiddenAtGreaterThanEqual(
+                author.getUserId(),
+                lookbackStart
+        );
+        if (hiddenTraceCount < ACTIVITY_RESTRICTION_TRACE_THRESHOLD) {
+            return;
+        }
+
+        Instant restrictedUntil = now.plus(ACTIVITY_RESTRICTION_DURATION);
+        author.restrictActivityUntil(restrictedUntil, ACTIVITY_RESTRICTION_REASON);
+        mailService.sendActivityRestrictionNotice(author.getEmail(), restrictedUntil);
+    }
+
+    private void validateUserCanAct(UserEntity user) {
+        if (user.isActivityRestricted(Instant.now())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "활동이 제한된 사용자입니다.");
+        }
     }
 
     private Trace findTrace(Long traceId) {

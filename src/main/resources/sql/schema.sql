@@ -8,6 +8,8 @@ CREATE TABLE IF NOT EXISTS users (
     provider VARCHAR(30) NOT NULL,
     provider_id VARCHAR(100) NULL,
     deleted_at DATETIME(6) NULL,
+    activity_restricted_until DATETIME(6) NULL,
+    activity_restriction_reason VARCHAR(255) NULL,
     created_at DATETIME(6) NULL,
     updated_at DATETIME(6) NULL,
     PRIMARY KEY (user_id),

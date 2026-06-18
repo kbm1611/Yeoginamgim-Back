@@ -304,6 +304,7 @@ public class TraceService {
 
         BoardEntity board = findBoard(boardId);
         UserEntity user = findUserByToken(authorization);
+        validateUserCanAct(user);
         validateCreateTextContent(request);
 
         Trace trace = traceRepository.save(Trace.create(board, user, request.getTraceX(), request.getTraceY()));
@@ -357,6 +358,7 @@ public class TraceService {
     public TraceResponse updateTrace(Long traceId, String authorization, TraceUpdateRequest request) {
         validateUpdateRequest(request);
         UserEntity user = findUserByToken(authorization);
+        validateUserCanAct(user);
 
         Trace trace = traceRepository
                 .findByTraceIdAndUser_UserIdAndTraceStatus(traceId, user.getUserId(), TraceStatus.ACTIVE)
@@ -383,6 +385,7 @@ public class TraceService {
     @Transactional
     public void hideTrace(Long traceId, String authorization) {
         UserEntity user = findUserByToken(authorization);
+        validateUserCanAct(user);
 
         Trace trace = traceRepository
                 .findByTraceIdAndUser_UserIdAndTraceStatus(traceId, user.getUserId(), TraceStatus.ACTIVE)
@@ -499,6 +502,7 @@ public class TraceService {
     public TraceLikeResponse addLike(Long traceId, String authorization) {
         Trace trace = findTrace(traceId);
         UserEntity user = findUserByToken(authorization);
+        validateUserCanAct(user);
         Long userId = user.getUserId();
 
         if (!traceLikeRepository.existsByUser_UserIdAndTrace_TraceId(userId, traceId)) {
@@ -512,7 +516,9 @@ public class TraceService {
     @Transactional
     public TraceLikeResponse removeLike(Long traceId, String authorization) {
         findTrace(traceId);
-        Long userId = findUserByToken(authorization).getUserId();
+        UserEntity user = findUserByToken(authorization);
+        validateUserCanAct(user);
+        Long userId = user.getUserId();
 
         if (traceLikeRepository.existsByUser_UserIdAndTrace_TraceId(userId, traceId)) {
             traceLikeRepository.deleteByUser_UserIdAndTrace_TraceId(userId, traceId);
@@ -600,6 +606,12 @@ public class TraceService {
         }
 
         return findUserByToken(authorization).getUserId();
+    }
+
+    private void validateUserCanAct(UserEntity user) {
+        if (user.isActivityRestricted(Instant.now())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "활동이 제한된 사용자입니다.");
+        }
     }
 
     private Trace findTrace(Long traceId) {

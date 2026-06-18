@@ -1,6 +1,7 @@
 package com.yeginamgim.report.service;
 
 import com.yeginamgim.auth.jwt.JWTService;
+import com.yeginamgim.auth.service.MailService;
 import com.yeginamgim.notification.service.NotificationService;
 import com.yeginamgim.report.dto.ReportCreateRequest;
 import com.yeginamgim.report.entity.ReportEntity;
@@ -14,6 +15,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -33,12 +35,14 @@ class ReportServiceTest {
     private final UserRepository userRepository = mock(UserRepository.class);
     private final JWTService jwtService = mock(JWTService.class);
     private final NotificationService notificationService = mock(NotificationService.class);
+    private final MailService mailService = mock(MailService.class);
     private final ReportService reportService = new ReportService(
             reportRepository,
             traceRepository,
             userRepository,
             jwtService,
-            notificationService
+            notificationService,
+            mailService
     );
 
     @Test
@@ -105,6 +109,8 @@ class ReportServiceTest {
         when(reportRepository.save(any(ReportEntity.class))).thenReturn(savedReport);
         when(reportRepository.countByTrace_TraceId(10L)).thenReturn(10L);
         when(reportRepository.findByTrace_TraceId(10L)).thenReturn(reports);
+        when(traceRepository.countByUser_UserIdAndReportHiddenAtGreaterThanEqual(eq(20L), any()))
+                .thenReturn(1L);
 
         reportService.createReport(10L, "Bearer token", request("ABUSE"));
 
@@ -115,6 +121,49 @@ class ReportServiceTest {
                 eq(reporter),
                 eq(reports)
         );
+    }
+
+    @Test
+    void restrictsAuthorActivityAndSendsMailWhenThreeTracesAreHiddenByReportWithinSevenDays() {
+        UserEntity author = user(20L, "author@example.com");
+        UserEntity reporter = user(30L, "reporter@example.com");
+        Trace trace = trace(10L, author, TraceStatus.ACTIVE);
+        ReportEntity savedReport = ReportEntity.create(reporter, trace, "ABUSE");
+        List<ReportEntity> reports = List.of(savedReport);
+
+        when(traceRepository.findById(10L)).thenReturn(Optional.of(trace));
+        when(jwtService.getClaim("Bearer token")).thenReturn("reporter@example.com");
+        when(userRepository.findByEmail("reporter@example.com")).thenReturn(Optional.of(reporter));
+        when(reportRepository.existsByUser_UserIdAndTrace_TraceId(30L, 10L)).thenReturn(false);
+        when(reportRepository.save(any(ReportEntity.class))).thenReturn(savedReport);
+        when(reportRepository.countByTrace_TraceId(10L)).thenReturn(10L);
+        when(reportRepository.findByTrace_TraceId(10L)).thenReturn(reports);
+        when(traceRepository.countByUser_UserIdAndReportHiddenAtGreaterThanEqual(eq(20L), any()))
+                .thenReturn(3L);
+
+        reportService.createReport(10L, "Bearer token", request("ABUSE"));
+
+        assertThat(author.getActivityRestrictedUntil()).isNotNull();
+        assertThat(author.getActivityRestrictionReason()).isEqualTo("REPORT_THRESHOLD");
+        assertThat(author.getActivityRestrictedUntil()).isAfter(Instant.now().plusSeconds(6 * 24 * 60 * 60));
+        verify(mailService).sendActivityRestrictionNotice(eq("author@example.com"), any());
+    }
+
+    @Test
+    void rejectsReportWhenReporterIsActivityRestricted() {
+        UserEntity reporter = user(30L, "reporter@example.com");
+        reporter.restrictActivityUntil(Instant.now().plusSeconds(3600), "REPORT_THRESHOLD");
+        Trace trace = trace(10L, user(20L, "author@example.com"), TraceStatus.ACTIVE);
+
+        when(traceRepository.findById(10L)).thenReturn(Optional.of(trace));
+        when(jwtService.getClaim("Bearer token")).thenReturn("reporter@example.com");
+        when(userRepository.findByEmail("reporter@example.com")).thenReturn(Optional.of(reporter));
+
+        ResponseStatusException exception = assertThrows(ResponseStatusException.class,
+                () -> reportService.createReport(10L, "Bearer token", request("ABUSE")));
+
+        assertThat(exception.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        verify(reportRepository, never()).save(any());
     }
 
     @Test

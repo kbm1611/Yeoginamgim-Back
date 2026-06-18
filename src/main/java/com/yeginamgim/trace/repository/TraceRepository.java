@@ -199,6 +199,8 @@ public interface TraceRepository extends JpaRepository<Trace, Long> {
             """)
     long countActiveByBoardId(@Param("boardId") Long boardId);
 
+    long countByUser_UserIdAndReportHiddenAtGreaterThanEqual(Long userId, Instant reportHiddenAt);
+
     @Query("""
             select trace.board.kakaoPlaceId as kakaoPlaceId,
                    count(trace) as traceCount

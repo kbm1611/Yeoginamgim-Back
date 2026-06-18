@@ -55,6 +55,12 @@ public class UserEntity extends BaseTime {
     @Column(name = "deleted_at")
     private Instant deletedAt;
 
+    @Column(name = "activity_restricted_until")
+    private Instant activityRestrictedUntil;
+
+    @Column(name = "activity_restriction_reason", length = 255)
+    private String activityRestrictionReason;
+
     public UserInfoResponseDto toInfoDto(){
         return UserInfoResponseDto.builder()
                 .userId(userId)
@@ -78,6 +84,15 @@ public class UserEntity extends BaseTime {
         this.nickname = WITHDRAWN_NICKNAME;
         this.profileImageUrl = null;
         this.birthDate = null;
+    }
+
+    public boolean isActivityRestricted(Instant now) {
+        return activityRestrictedUntil != null && activityRestrictedUntil.isAfter(now);
+    }
+
+    public void restrictActivityUntil(Instant restrictedUntil, String reason) {
+        this.activityRestrictedUntil = restrictedUntil;
+        this.activityRestrictionReason = reason;
     }
 
     private String createWithdrawnEmail(Instant withdrawnAt) {
