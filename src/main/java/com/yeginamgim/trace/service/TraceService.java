@@ -165,6 +165,10 @@ public class TraceService {
                 )
                 : traceRepository.findRecentActiveTracesSince(TraceStatus.ACTIVE, startAt, pageable);
 
+        traces = traces.stream()
+                .filter(trace -> trace.getBoard() != null)
+                .toList();
+
         Map<Long, List<TraceElement>> elementMap = findElementsByTraceIds(traces.stream()
                 .map(Trace::getTraceId)
                 .toList());

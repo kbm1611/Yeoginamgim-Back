@@ -39,6 +39,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class TraceServiceTest {
@@ -247,6 +248,37 @@ class TraceServiceTest {
 
         verify(traceRepository).save(any(Trace.class));
         verify(notificationService).createCustomBoardTraceNotifications(eq(user), any(Trace.class));
+    }
+
+    @Test
+    void getRecentTracesWithoutDistrictSkipsCustomBoardTraces() {
+        UserEntity user = user();
+        Trace placeTrace = Trace.builder()
+                .traceId(10L)
+                .user(user)
+                .board(board())
+                .traceX(1)
+                .traceY(2)
+                .traceStatus(TraceStatus.ACTIVE)
+                .build();
+        Trace customBoardTrace = Trace.builder()
+                .traceId(11L)
+                .user(user)
+                .customBoard(CustomBoard.builder().customBoardId(7L).boardTitle("friends").build())
+                .traceX(3)
+                .traceY(4)
+                .traceStatus(TraceStatus.ACTIVE)
+                .build();
+
+        when(traceRepository.findRecentActiveTracesSince(eq(TraceStatus.ACTIVE), any(Instant.class), any()))
+                .thenReturn(List.of(customBoardTrace, placeTrace));
+        when(traceElementRepository.findByTrace_TraceIdInOrderByElementIdAsc(any())).thenReturn(List.of());
+        when(placeCsvStore.findByKakaoPlaceId("place-1")).thenReturn(Optional.empty());
+        when(traceLikeRepository.countByTrace_TraceId(10L)).thenReturn(2L);
+
+        List<?> responses = traceService.getRecentTraces("today", null, 5, null);
+
+        assertThat(responses).hasSize(1);
     }
 
     @Test
