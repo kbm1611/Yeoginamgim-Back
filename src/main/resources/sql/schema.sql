@@ -84,6 +84,7 @@ CREATE TABLE IF NOT EXISTS trace (
     trace_x INT NOT NULL,
     trace_y INT NOT NULL,
     trace_status VARCHAR(255) NOT NULL DEFAULT 'ACTIVE',
+    report_hidden_at DATETIME(6) NULL,
     created_at DATETIME(6) NULL,
     updated_at DATETIME(6) NULL,
     PRIMARY KEY (trace_id),

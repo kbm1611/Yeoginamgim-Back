@@ -91,6 +91,38 @@ public class Notification {
                 .build();
     }
 
+    public static Notification createTraceHiddenByReportForAuthor(
+            UserEntity receiver,
+            UserEntity sender,
+            Trace trace,
+            String message
+    ) {
+        return Notification.builder()
+                .receiver(receiver)
+                .sender(sender)
+                .trace(trace)
+                .notificationType(NotificationType.TRACE_HIDDEN_BY_REPORT_FOR_AUTHOR)
+                .message(message)
+                .read(false)
+                .build();
+    }
+
+    public static Notification createTraceHiddenByReportForReporter(
+            UserEntity receiver,
+            UserEntity sender,
+            Trace trace,
+            String message
+    ) {
+        return Notification.builder()
+                .receiver(receiver)
+                .sender(sender)
+                .trace(trace)
+                .notificationType(NotificationType.TRACE_HIDDEN_BY_REPORT_FOR_REPORTER)
+                .message(message)
+                .read(false)
+                .build();
+    }
+
     public void markAsRead() {
         if (this.read) {
             return;

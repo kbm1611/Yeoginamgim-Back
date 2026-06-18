@@ -8,8 +8,10 @@ import com.yeginamgim.follow.entity.Follow;
 import com.yeginamgim.follow.repository.FollowRepository;
 import com.yeginamgim.notification.dto.NotificationResponse;
 import com.yeginamgim.notification.entity.Notification;
+import com.yeginamgim.notification.enums.NotificationType;
 import com.yeginamgim.notification.repository.NotificationRepository;
 import com.yeginamgim.place.repository.PlaceCsvStore;
+import com.yeginamgim.report.entity.ReportEntity;
 import com.yeginamgim.trace.entity.Trace;
 import com.yeginamgim.trace.entity.TraceElement;
 import com.yeginamgim.trace.repository.TraceElementRepository;
@@ -22,6 +24,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -77,6 +81,42 @@ public class NotificationService {
                         sender.getNickname() + "님이 커스텀 보드에 새 흔적을 남겼습니다."
                 ))
                 .toList();
+
+        if (!notifications.isEmpty()) {
+            notificationRepository.saveAll(notifications);
+        }
+    }
+
+    @Transactional
+    public void createTraceHiddenByReportNotifications(
+            Trace trace,
+            UserEntity thresholdReporter,
+            List<ReportEntity> reports
+    ) {
+        if (trace == null || trace.getUser() == null || thresholdReporter == null) {
+            return;
+        }
+
+        UserEntity author = trace.getUser();
+        String boardLabel = resolveBoardLabel(trace);
+        String tracePreview = resolveTracePreview(trace);
+
+        List<Notification> notifications = new ArrayList<>();
+        notifications.add(Notification.createTraceHiddenByReportForAuthor(
+                author,
+                thresholdReporter,
+                trace,
+                boardLabel + "에 작성한 \"" + tracePreview + "\" 흔적이 여러 사용자에게 신고되어 숨김 처리되었습니다."
+        ));
+
+        findReporters(reports).forEach(reporter -> notifications.add(
+                Notification.createTraceHiddenByReportForReporter(
+                        reporter,
+                        author,
+                        trace,
+                        "신고한 " + boardLabel + "의 \"" + tracePreview + "\" 흔적이 숨김 처리되었습니다."
+                )
+        ));
 
         if (!notifications.isEmpty()) {
             notificationRepository.saveAll(notifications);
@@ -179,6 +219,10 @@ public class NotificationService {
     }
 
     private String resolveDisplayMessage(Notification notification, String placeName, String boardTitle) {
+        if (notification.getNotificationType() != NotificationType.FOLLOWING_TRACE_CREATED) {
+            return notification.getMessage();
+        }
+
         String senderNickname = notification.getSender() == null ? null : notification.getSender().getNickname();
         if (!StringUtils.hasText(senderNickname)) {
             return notification.getMessage();
@@ -193,6 +237,53 @@ public class NotificationService {
         }
 
         return notification.getMessage();
+    }
+
+    private List<UserEntity> findReporters(List<ReportEntity> reports) {
+        if (reports == null || reports.isEmpty()) {
+            return List.of();
+        }
+
+        Map<Long, UserEntity> reporterMap = new LinkedHashMap<>();
+        for (ReportEntity report : reports) {
+            if (report == null || report.getUser() == null || report.getUser().getUserId() == null) {
+                continue;
+            }
+            reporterMap.putIfAbsent(report.getUser().getUserId(), report.getUser());
+        }
+        return List.copyOf(reporterMap.values());
+    }
+
+    private String resolveBoardLabel(Trace trace) {
+        String placeName = resolvePlaceName(trace);
+        if (StringUtils.hasText(placeName)) {
+            return placeName;
+        }
+
+        String boardTitle = resolveBoardTitle(trace);
+        if (StringUtils.hasText(boardTitle)) {
+            return boardTitle;
+        }
+
+        return "보드";
+    }
+
+    private String resolveTracePreview(Trace trace) {
+        if (trace == null || trace.getTraceId() == null) {
+            return "새 흔적";
+        }
+
+        List<TraceElement> elements = traceElementRepository.findByTrace_TraceIdOrderByElementIdAsc(trace.getTraceId());
+        if (elements == null || elements.isEmpty()) {
+            return "이미지 흔적";
+        }
+
+        return elements.stream()
+                .map(TraceElement::getTextContent)
+                .filter(StringUtils::hasText)
+                .map(String::trim)
+                .findFirst()
+                .orElse("이미지 흔적");
     }
 
     private String resolvePlaceName(Trace trace) {

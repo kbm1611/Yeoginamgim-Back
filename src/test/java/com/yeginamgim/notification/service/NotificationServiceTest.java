@@ -11,8 +11,10 @@ import com.yeginamgim.follow.entity.Follow;
 import com.yeginamgim.follow.repository.FollowRepository;
 import com.yeginamgim.notification.dto.NotificationResponse;
 import com.yeginamgim.notification.entity.Notification;
+import com.yeginamgim.notification.enums.NotificationType;
 import com.yeginamgim.notification.repository.NotificationRepository;
 import com.yeginamgim.place.repository.PlaceCsvStore;
+import com.yeginamgim.report.entity.ReportEntity;
 import com.yeginamgim.trace.entity.Trace;
 import com.yeginamgim.trace.entity.TraceElement;
 import com.yeginamgim.trace.enums.ContentType;
@@ -29,6 +31,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -116,6 +119,46 @@ class NotificationServiceTest {
             notifications.forEach(notificationList::add);
             return notificationList.size() == 1
                     && notificationList.get(0).getReceiver().getUserId().equals(1L);
+        }));
+    }
+
+    @Test
+    void createTraceHiddenByReportNotificationsNotifiesAuthorAndAllReporters() {
+        UserEntity author = user(1L, "author@example.com", "작성자");
+        UserEntity firstReporter = user(2L, "reporter1@example.com", "신고자1");
+        UserEntity secondReporter = user(3L, "reporter2@example.com", "신고자2");
+        Trace trace = Trace.builder()
+                .traceId(10L)
+                .user(author)
+                .traceX(1)
+                .traceY(2)
+                .build();
+        ReportEntity firstReport = ReportEntity.create(firstReporter, trace, "ABUSE");
+        ReportEntity secondReport = ReportEntity.create(secondReporter, trace, "SPAM");
+
+        notificationService.createTraceHiddenByReportNotifications(
+                trace,
+                secondReporter,
+                List.of(firstReport, secondReport)
+        );
+
+        verify(notificationRepository).saveAll(argThat(notifications -> {
+            List<Notification> notificationList = new java.util.ArrayList<>();
+            notifications.forEach(notificationList::add);
+
+            return notificationList.size() == 3
+                    && notificationList.stream().anyMatch(notification ->
+                    notification.getReceiver().getUserId().equals(1L)
+                            && notification.getSender().getUserId().equals(3L)
+                            && notification.getNotificationType() == NotificationType.TRACE_HIDDEN_BY_REPORT_FOR_AUTHOR)
+                    && notificationList.stream().anyMatch(notification ->
+                    notification.getReceiver().getUserId().equals(2L)
+                            && notification.getSender().getUserId().equals(1L)
+                            && notification.getNotificationType() == NotificationType.TRACE_HIDDEN_BY_REPORT_FOR_REPORTER)
+                    && notificationList.stream().anyMatch(notification ->
+                    notification.getReceiver().getUserId().equals(3L)
+                            && notification.getSender().getUserId().equals(1L)
+                            && notification.getNotificationType() == NotificationType.TRACE_HIDDEN_BY_REPORT_FOR_REPORTER);
         }));
     }
 

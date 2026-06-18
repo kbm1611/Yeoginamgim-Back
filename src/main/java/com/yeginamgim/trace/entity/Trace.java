@@ -13,6 +13,8 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 
+import java.time.Instant;
+
 @Entity
 @Table(name = "trace")
 @Data
@@ -61,9 +63,19 @@ public class Trace extends BaseTime {
     @Builder.Default
     private TraceStatus traceStatus = TraceStatus.ACTIVE;
 
+    /** 신고 누적으로 숨김 처리된 시간. 사용자가 직접 삭제한 경우에는 null이다. */
+    @Column(name = "report_hidden_at")
+    private Instant reportHiddenAt;
+
     /** 흔적 숨기기 (ACTIVE → HIDE) */
     public void hide() {
         this.traceStatus = TraceStatus.HIDE;
+    }
+
+    /** 신고 누적으로 흔적 숨기기 */
+    public void hideByReport(Instant hiddenAt) {
+        this.traceStatus = TraceStatus.HIDE;
+        this.reportHiddenAt = hiddenAt;
     }
 
     /** board와 customBoard 중 하나만 설정되었는지 검증 */
