@@ -66,7 +66,7 @@ public class UserService {
 //        if (fileName != null) {
         if (fileUrl != null) {
 //            saveEntity.setProfileImageUrl("/upload/profile/" + fileName);
-            saveEntity.setProfileImageUrl(fileUrl);//
+            saveEntity.setProfileImageUrl(fileUrl);
         }
 
         String pwd = passwordEncoder.encode(userReqDto.getPassword());
