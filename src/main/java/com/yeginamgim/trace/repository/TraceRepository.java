@@ -159,6 +159,7 @@ public interface TraceRepository extends JpaRepository<Trace, Long> {
             SELECT t
             FROM Trace t
             WHERE t.traceStatus = :traceStatus
+              AND t.board IS NOT NULL
               AND t.createdAt >= :startAt
             ORDER BY t.createdAt DESC, t.traceId DESC
             """)
@@ -172,6 +173,7 @@ public interface TraceRepository extends JpaRepository<Trace, Long> {
             SELECT t
             FROM Trace t
             WHERE t.traceStatus = :traceStatus
+              AND t.board IS NOT NULL
               AND t.createdAt >= :startAt
               AND t.board.kakaoPlaceId in :kakaoPlaceIds
             ORDER BY t.createdAt DESC, t.traceId DESC
